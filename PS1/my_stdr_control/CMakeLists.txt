@@ -127,16 +127,14 @@ include_directories(
 # add_dependencies(my_stdr_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(my_stdr_control_node src/my_stdr_control_node.cpp)
+add_executable(my_stdr_publisher src/my_stdr_publisher.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(my_stdr_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(my_stdr_control_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(my_stdr_publisher ${catkin_LIBRARIES})
 
 #############
 ## Install ##
