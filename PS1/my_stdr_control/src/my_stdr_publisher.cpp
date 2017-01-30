@@ -2,7 +2,7 @@
 #include <geometry_msgs/Twist.h>
 //node to send Twist commands to the Simple 2-Dimensional Robot Simulator via cmd_vel
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "stdr_commander"); 
+	ros::init(argc, argv, "my_stdr_control"); 
 	ros::NodeHandle n; // two lines to create a publisher object that can talk to ROS
 	ros::Publisher twist_commander = n.advertise<geometry_msgs::Twist>("/robot0/cmd_vel", 1);
 	//some "magic numbers"
