@@ -9,6 +9,15 @@ double dt = 0.01;			// update period of 10ms
 double speed = 1.0;			// 1m/s speed
 double yaw_rate = 0.5;		// 0.5rad/s yaw rate
 
+void perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+	double timer = 0.0;
+	while (timer < duration) {
+		(*twist_commander).publish(*twist_cmd);
+		timer += dt;
+		(*loop_timer).sleep();
+	}
+}
+
 void be_stationary(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
 	// set command parameters
 	(*twist_cmd).linear.x = 0.0;
@@ -19,12 +28,7 @@ void be_stationary(double duration, ros::Publisher* twist_commander, geometry_ms
 	(*twist_cmd).angular.z = 0.0;
 	
 	// perform action
-	double timer = 0.0;
-	while (timer < duration) {
-		(*twist_commander).publish(*twist_cmd);
-		timer += dt;
-		(*loop_timer).sleep();
-	}
+	perform_twist_action(duration, twist_commander, twist_cmd, loop_timer);
 }
 
 void move_forward(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
@@ -37,12 +41,7 @@ void move_forward(double duration, ros::Publisher* twist_commander, geometry_msg
 	(*twist_cmd).angular.z = 0.0;
 	
 	// perform action
-	double timer = 0.0;
-	while (timer < duration) {
-		(*twist_commander).publish(*twist_cmd);
-		timer += dt;
-		(*loop_timer).sleep();
-	}
+	perform_twist_action(duration, twist_commander, twist_cmd, loop_timer);
 }
 
 void make_turn(int direction, double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
@@ -63,12 +62,7 @@ void make_turn(int direction, double duration, ros::Publisher* twist_commander, 
 	(*twist_cmd).angular.z = yaw_rate * direction;
 	
 	// perform action
-	double timer = 0.0;
-	while (timer < duration) {
-		(*twist_commander).publish(*twist_cmd);
-		timer += dt;
-		(*loop_timer).sleep();
-	}
+	perform_twist_action(duration, twist_commander, twist_cmd, loop_timer);
 }
 
 void make_right_angle_turn(int direction, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
@@ -94,45 +88,55 @@ int main(int argc, char **argv) {
 	twist_cmd.angular.z=0.0;
 	
 	// warm up communication with stationary command
-	be_stationary(0.5, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
 	
 	// -----------------------------
 	// NAVIAGE TO THE TO LEFT CORNER
 	// -----------------------------
 	
-	// move forward for 3s
-	move_forward(3.0, &twist_commander, &twist_cmd, &loop_timer);
-	
-	// be stationary for .5s
-	be_stationary(0.5, &twist_commander, &twist_cmd, &loop_timer);
+	move_forward(3.5, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
 	
 	make_right_angle_turn(1, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
 	
-	double timer = 0.0;
+	move_forward(3.0, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
 	
-//	twist_cmd.angular.z=yaw_rate; //and start spinning in place
-//	timer=0.0; //reset the timer
-//	while(timer<3.0) {
-//		twist_commander.publish(twist_cmd);
-//		timer+=dt;
-//		loop_timer.sleep();
-//	}
-
-	twist_cmd.angular.z=0.0; //and stop spinning in place 
-	twist_cmd.linear.x=speed; //and move forward again
-	timer=0.0; //reset the timer
-	while(timer<3.0) {
-		twist_commander.publish(twist_cmd);
-		timer+=dt;
-		loop_timer.sleep();
-	}
-	//halt the motion
-	twist_cmd.angular.z=0.0; 
-	twist_cmd.linear.x=0.0; 
-	for (int i=0;i<10;i++) {
-		twist_commander.publish(twist_cmd);
-		loop_timer.sleep();
-	}			   
-	//done commanding the robot; node runs to completion
+	make_right_angle_turn(-1, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	move_forward(3.5, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	make_right_angle_turn(1, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	move_forward(2.25, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	make_turn(1, 3.0, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	move_forward(6.0, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	make_right_angle_turn(-1, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	move_forward(2.0, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	make_right_angle_turn(1, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	move_forward(0.75, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	make_right_angle_turn(-1, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
+	
+	move_forward(4.5, &twist_commander, &twist_cmd, &loop_timer);
+	be_stationary(0.1, &twist_commander, &twist_cmd, &loop_timer);
 }
 
