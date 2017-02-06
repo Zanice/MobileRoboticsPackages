@@ -1,4 +1,4 @@
-// dist_alarm Publisher
+// reactive_publisher Publisher
 // @ znj
 // Based off of provided script "reactive_commander.cpp"
 
@@ -10,13 +10,10 @@ const double dt = 0.01;			// update period of 10ms
 const double speed = 1.0;		// 1m/s speed
 const double yaw_rate = 0.5;	// 0.5rad/s yaw rate
 
-bool alarm = false;
+bool dist_alarm = false;
 
 void onAlarmCallback(const std_msgs::Bool& alarm_msg) {
-	alarm = alarm_msg.data;
-	if (alarm) {
-		; // log information?
-	}
+	dist_alarm = alarm_msg.data;
 }
 
 void set_stationary_cmd(geometry_msgs::Twist* twist_cmd) {
@@ -81,16 +78,29 @@ int main(int argc, char** argv) {
 	}
 	
 	// perform the main behavioral loop
+	bool first_iteration;
 	while (ros::ok()) {
 		// move forward for as long as the alarm is not raised
+		first_iteration = true;
 		set_forward_cmd(&twist_cmd);
-		while (!alarm) {
+		while (!dist_alarm) {
+			if (first_iteration) {
+				ROS_INFO("(alarm=f) Moving forward...");
+				first_iteration = false;
+			}
+			
 			perform_twist(&twist_commander, &twist_cmd, &loop_timer);
 		}
 		
 		// the alarm is raised, keep turning to find a new route (until alarm clears)
+		first_iteration = true;
 		set_turn_cmd(-1, &twist_cmd);
-		while (alarm) {
+		while (dist_alarm) {
+			if (first_iteration) {
+				ROS_WARN("(alarm=t) Obstacle found. Turning...");
+				first_iteration = false;
+			}
+			
 			perform_twist(&twist_commander, &twist_cmd, &loop_timer);
 		}
 	}

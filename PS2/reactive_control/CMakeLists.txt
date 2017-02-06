@@ -127,16 +127,16 @@ include_directories(
 # add_dependencies(reactive_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-# add_executable(reactive_control_node src/reactive_control_node.cpp)
+add_executable(dist_alarm src/dist_alarm.cpp)
+add_executable(reactive_publisher src/reactive_publisher.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(reactive_control_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(reactive_control_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(dist_alarm ${catkin_LIBRARIES})
+target_link_libraries(reactive_publisher ${catkin_LIBRARIES})
 
 #############
 ## Install ##

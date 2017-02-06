@@ -6,8 +6,10 @@
 #include <sensor_msgs/LaserScan.h>
 #include <std_msgs/Float32.h>
 #include <std_msgs/Bool.h>
+#include <math.h>
 
-const double MIN_SAFE_DIST = 1.0;
+const double MIN_SAFE_DIST = 0.6;
+const double CONE_ANGLE_FROM_MID = 0.8;
 
 // initialize flag for callback information setup
 bool info_setup = false;
@@ -22,7 +24,7 @@ int min_index = -1;
 int max_index = -1;
 
 // initialize variables used in callback
-int index = 0;
+int scan_index = 0;
 float current_dist = 0.0;
 float min_dist = 0.0;
 bool dist_alarm = false;
@@ -31,25 +33,27 @@ bool dist_alarm = false;
 ros::Publisher alarm_publisher;
 ros::Publisher dist_publisher;
 
-void onLaserCallback(const sensor_msgs::LaserScan& laserScan) {
+void onLaserCallback(const sensor_msgs::LaserScan& laser_scans) {
 	if (!info_setup) {
-		angle_min = laser_scan.angle_min;
-		angle_max = laser_scan.angle_max;
-		angle_delta = laser_scan.angle_increment;
-		range_min = laser_scan.range_min;
-		range_max = laser_scan.range_max;
+		angle_min = laser_scans.angle_min;
+		angle_max = laser_scans.angle_max;
+		angle_delta = laser_scans.angle_increment;
+		range_min = laser_scans.range_min;
+		range_max = laser_scans.range_max;
 		
-		// from some range of indexes, take the results of the scans
-		min_index = 0;
-		max_index = 0;
+		min_index = (-CONE_ANGLE_FROM_MID - angle_min) / angle_delta;
+		max_index = (-angle_min + CONE_ANGLE_FROM_MID) / angle_delta;
+		
+		ROS_INFO("Sensing between (from min) angles %f and %f.", -1 - angle_min, -angle_min + 1);
+		ROS_INFO("Sensing between indexes %d and %d.", min_index, max_index);
 		
 		info_setup = true;
 	}
 	
 	// PROCEDURE: find the minimum distance measurement in a range of scan measurements
 	min_dist = range_max;
-	for (index = min_index; index <= max_index; index++) {
-		current_dist = laser_scans.ranges[index];
+	for (scan_index = min_index; scan_index <= max_index; scan_index++) {
+		current_dist = laser_scans.ranges[scan_index];
 		if (current_dist < min_dist) {
 			min_dist = current_dist;
 		}
@@ -57,9 +61,15 @@ void onLaserCallback(const sensor_msgs::LaserScan& laserScan) {
 	
 	// if the found minimum is dangerously close, raise the alarm
 	if (min_dist < MIN_SAFE_DIST) {
+		if (!dist_alarm) {
+			ROS_WARN("Obstacle found; alarm sounded!");
+		}
 		dist_alarm = true;
 	}
 	else {
+		if (dist_alarm) {
+			ROS_INFO(">>> Alarm cleared.");
+		}
 		dist_alarm = false;
 	}
 	
@@ -79,7 +89,7 @@ int main(int argc, char** argv) {
 	alarm_publisher = n.advertise<std_msgs::Bool>("alarm", 1);
 	dist_publisher = n.advertise<std_msgs::Float32>("dist", 1);
 	
-	ros::Subscriber lidar_subscriber = nh.subscribe("robot0/laser_0", 1, onLaserCallback);
+	ros::Subscriber lidar_subscriber = n.subscribe("robot0/laser_0", 1, onLaserCallback);
 	ros::spin();
 	
 	return 0;
