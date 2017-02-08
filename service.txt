@@ -1,0 +1,48 @@
+<package>/srv/*
+
+ExampleServiceMsg.srv
+"""
+
+string name
+---
+bool on_the_list
+bool good_guy
+int32 age
+string nickname
+
+"""
+
+
+
+
+
+in the code: 
+
+#include <<PACKAGE>/ExampleServiceMsg.h>
+
+ros::ServiceServer service = n.advertiseService(<SERVICE_NAME>, callback);
+ros::spin();
+
+...
+
+callback(<PACKAGE>::ExampleServiceMsgRequest& request, <PACKAGE>::ExampleServiceMsgResponse& response) {
+	...
+	
+	return true;
+}
+
+
+
+
+on the cmd:
+
+rosservice call <SERVICE_NAME> <ARGS>
+
+
+
+
+in client:
+
+ros::ServiceClient client = n.serviceClient<<PACKAGE>::ExampleServiceMsg>(<SERVICE_NAME>);
+client.call(...);
+client.exists();

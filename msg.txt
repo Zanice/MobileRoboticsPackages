@@ -1,0 +1,17 @@
+<package>/srv/*
+
+ExampleMessage.msg
+"""
+
+Header header
+int32 demo_int
+float64 demo_double
+
+"""
+
+
+
+
+in the code:
+
+#include <example_ros_msg/ExampleMessage.h>
