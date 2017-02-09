@@ -5,6 +5,7 @@
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <std_msgs/Bool.h>
+#include <stdlib.h>
 
 const double dt = 0.01;			// update period of 10ms
 const double speed = 1.0;		// 1m/s speed
@@ -94,7 +95,14 @@ int main(int argc, char** argv) {
 		
 		// the alarm is raised, keep turning to find a new route (until alarm clears)
 		first_iteration = true;
-		set_turn_cmd(-1, &twist_cmd);
+		if (rand() % 2 == 0) {
+			// randomly turn left
+			set_turn_cmd(1, &twist_cmd);
+		}
+		else {
+			// randomly turn right
+			set_turn_cmd(-1, &twist_cmd);
+		}
 		while (dist_alarm) {
 			if (first_iteration) {
 				ROS_WARN("(alarm=t) Obstacle found. Turning...");
