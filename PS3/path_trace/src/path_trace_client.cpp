@@ -3,24 +3,20 @@
 // adapted from "path_client.cpp"
 
 #include <ros/ros.h>
-#include <iostream>
-#include <string>
-#include <path_tracing/PathServiceMessage.h>
+#include <path_trace/PathServiceMessage.h>
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <math.h>
 
-const double* PATH_POINTS = {
-	1.0, 0.0,
-	1.0, 1.0
+const double PATH_POINTS[] = {
+	0.0, 1.0,
+	1.0, 1.0,
+	2.0, 2.0
 };
+const int PATH_POINTS_SIZE = sizeof(PATH_POINTS) / sizeof(PATH_POINTS[0]);
 
-geometry_msgs::Quaternion getIdentityQuaternion() {
-	return planarToQuaternion(0.0);
-}
-
-geometry_msgs::Quarternion planarToQuaternion(double phi) {
+geometry_msgs::Quaternion planarToQuaternion(double phi) {
 	geometry_msgs::Quaternion q;
 	q.x = 0.0;
 	q.y = 0.0;
@@ -28,6 +24,10 @@ geometry_msgs::Quarternion planarToQuaternion(double phi) {
 	q.w = cos(phi / 2);
 	
 	return q;
+}
+
+geometry_msgs::Quaternion getIdentityQuaternion() {
+	return planarToQuaternion(0.0);
 }
 
 geometry_msgs::PoseStamped createPose(double x, double y) {
@@ -44,9 +44,9 @@ geometry_msgs::PoseStamped createPose(double x, double y) {
 }
 
 geometry_msgs::PoseStamped createNextPose(geometry_msgs::PoseStamped* old_pose, double x, double y) {
-	double old_x = old_pose.position.x;
-	double old_y = old_pose.position.y;
-	double old_z = old_pose.position.z;
+	double old_x = (*old_pose).pose.position.x;
+	double old_y = (*old_pose).pose.position.y;
+	double old_z = (*old_pose).pose.position.z;
 	
 	double dx = x - old_x;
 	double dy = y - old_y;
@@ -64,7 +64,7 @@ geometry_msgs::PoseStamped createNextPose(geometry_msgs::PoseStamped* old_pose, 
 	return ps;
 }
 
-void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_tracing::PathServiceMessage* path, bool consider_previous) {
+void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_trace::PathServiceMessage* path, bool consider_previous) {
 	if (consider_previous) {
 		*pose = createNextPose(pose, x, y);
 	}
@@ -76,9 +76,9 @@ void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_tr
 }
 
 int main(int argc, char** argv) {
-	ros::init(argc, argv, "path_client");
+	ros::init(argc, argv, "path_trace_client");
 	ros::NodeHandle n;
-	ros::ServiceClient service = n.serviceClient<path_tracing::PathServiceMessage>("path_service");
+	ros::ServiceClient service = n.serviceClient<path_trace::PathServiceMessage>("path_trace_service");
 	
 	geometry_msgs::Quaternion quaternion;
 	
@@ -90,11 +90,11 @@ int main(int argc, char** argv) {
 		ros::Duration(1.0).sleep();
 	}
 	
-	ROS__INFO("Connection to service established.");
+	ROS_INFO("Connection to service established.");
 	
 	// declare request variables
 	geometry_msgs::PoseStamped pose;
-	path_tracing::PathServiceMessage request;
+	path_trace::PathServiceMessage request;
 	
 	// start with initial pose
 	addPoseToPath(0.0, 0.0, &pose, &request, false);
@@ -103,9 +103,10 @@ int main(int argc, char** argv) {
 	int pair_index;
 	double x;
 	double y;
-	for (pair_index = 0; pair_index < PATH_POINTS.size() - 1; pair_index += 2) {
+	for (pair_index = 0; pair_index < PATH_POINTS_SIZE - 1; pair_index += 2) {
 		x = PATH_POINTS[pair_index];
 		y = PATH_POINTS[pair_index + 1];
+		ROS_INFO("Creating pose at point %f, %f.", x, y);
 		addPoseToPath(x, y, &pose, &request, true);
 	}
 	
