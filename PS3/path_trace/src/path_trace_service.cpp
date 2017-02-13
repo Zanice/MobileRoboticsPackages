@@ -10,14 +10,27 @@
 #include <geometry_msgs/Twist.h>
 #include <math.h>
 
-// value in m/s
+// robot movement speed value in m/s
 const double MOVE_SPEED = 1.0;
 
-// value in rads/s
+// robot turn speed value in rads/s
 const double TURN_SPEED = 0.5;
 
 // update rate
 const double DT = 0.01;
+
+// minimum number of command iterations that would make an action worthwhile
+const double THRESHOLD_ITERS = 1;
+
+// threshold for movement adjustment, in m
+const double MOVE_THRESHOLD = MOVE_SPEED * DT * THRESHOLD_ITERS;
+
+// threshold for turn adjustment, in rads
+const double TURN_THRESHOLD = TURN_SPEED * DT * THESHOLD_ITERS;
+
+double current_x = 0.0;
+double current_y = 0.0;
+double current_phi = 0.0;
 
 // execute a twist message publish over a certain duration
 void perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
@@ -79,6 +92,16 @@ void make_turn(int direction, double radians, ros::Publisher* twist_commander, g
 	perform_twist_action(radians / TURN_SPEED, twist_commander, twist_cmd, loop_timer);
 }
 
+// execute a twist command for some amount of positive or negative radians
+void make_turn(double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+	if (radians > 0) {
+		make_turn(1, radians, twist_commander, twist_cmd, loop_timer);
+	}
+	else {
+		make_turn(-1, radians * -1, twist_commander, twist_cmd, loop_timer);
+	}
+}
+
 // execute a twist command for turning pi/2 radians positively or negatively
 void make_right_angle_turn(int direction, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
 	make_turn(direction, M_PI / 2, twist_commander, twist_cmd, loop_timer);
@@ -92,16 +115,47 @@ double quaternionToPlanar(geometry_msgs::Quaternion quaternion) {
 	return phi;
 }
 
+double getDistanceBetween(double x1, double y1, double x2, double y2) {
+	return sqrt(pow((x2 - x1), 2.0) + pow((y2 - y1), 2.0));
+}
+
+double getDeltaPhi(double phi, double reference) {
+	return phi - reference;
+}
+
 bool pathCallback(path_trace::PathServiceMessageRequest& request, path_trace::PathServiceMessageResponse& response) {
 	int pose_count = request.nav_path.poses.size();
 	ROS_WARN("Received path request of %d poses.", pose_count);
 	
 	int index;
+	double turn_phi;
+	double forward_dist;
 	geometry_msgs::Pose pose;
 	for (index = 0; index < pose_count; index++) {
 		pose = request.nav_path.poses[index].pose;
 		
-		ROS_INFO("<POSE> x=%f y=%f phi=%f", pose.position.x, pose.position.y, quaternionToPlanar(pose.orientation));
+		// display goal pose, current pose information
+		ROS_WARN("<POSE %d> x=%f y=%f phi=%f as DESIRED", index, pose.position.x, pose.position.y, quaternionToPlanar(pose.orientation));
+		ROS_INFO("<POSE %d> Currently at x=%f, y=%f with rotation %f", index, current_x, current_y, current_phi);
+		
+		// determine the turn to perform as a subgoal for the pose
+		turn_phi = getDeltaPhi(quaternionToPlanar(pose.orientation), current_phi);
+		ROS_INFO("<POSE %d> Turning %f radians.", index, turn_phi);
+		
+		// perform and record the expected result of the turn <ERROR CHECKING?>
+		
+		current_phi = current_phi + turn_phi;
+		
+		// determine the forward movement distance as a subgoal for the pose
+		forward_dist = getDistanceBetween(current_x, current_y, pose.position.x, pose.position.y);
+		ROS_INFO("<POSE %d> Moving forward %f meters.", index, forward_dist);
+		
+		// perform and record the expected result of the forward movement <ERROR CHECKING?>
+		current_x = pose.position.x;
+		current_y = pose.position.y;
+		
+		// report the results of attempting the current pose
+		ROS_WARN("<POSE %d> x=%f y=%f phi=%f as ACTUAL", index, current_x, current_y, current_phi);
 	}
 	
 	return true;
