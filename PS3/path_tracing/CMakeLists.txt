@@ -50,11 +50,7 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(FILES PathServiceMessage.srv)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -127,20 +123,23 @@ include_directories(
 # add_dependencies(path_tracing ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
-add_executable(path_client src/path_client.cpp)
-add_executable(path_service src/path_service.cpp)
+add_executable(path_tracing_client src/path_client.cpp)
+add_executable(path_tracing_service src/path_service.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 # add_dependencies(path_tracing_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(path_client ${catkin_LIBRARIES})
-target_link_libraries(path_service ${catkin_LIBRARIES})
+target_link_libraries(path_tracing_client ${catkin_LIBRARIES})
+target_link_libraries(path_tracing_service ${catkin_LIBRARIES})
 
 #############
 ## Install ##
 #############
+
+cs_install()
+cs_export()
 
 # all install targets should use catkin DESTINATION variables
 # See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html

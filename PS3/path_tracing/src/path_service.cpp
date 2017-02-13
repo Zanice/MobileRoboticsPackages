@@ -4,7 +4,7 @@
 
 #include <ros/ros.h>
 #include <iostream>
-#include <sting>
+#include <string>
 #include <path_tracing/PathServiceMessage.h>
 #include <nav_msgs/Path.h>
 #include <geometry_msgs/Pose.h>
