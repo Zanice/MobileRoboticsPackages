@@ -10,6 +10,80 @@
 #include <geometry_msgs/Twist.h>
 #include <math.h>
 
+// value in m/s
+const double MOVE_SPEED = 1.0;
+
+// value in rads/s
+const double TURN_SPEED = 0.5;
+
+// update rate
+const double DT = 0.01;
+
+// execute a twist message publish over a certain duration
+void perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+	double timer = 0.0;
+	while (timer < duration) {
+		(*twist_commander).publish(*twist_cmd);
+		timer += DT;
+		(*loop_timer).sleep();
+	}
+}
+
+// execute a twist command for stationary status, for some duration
+void be_stationary(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+	// set command parameters
+	(*twist_cmd).linear.x = 0.0;
+	(*twist_cmd).linear.y = 0.0;
+	(*twist_cmd).linear.z = 0.0;
+	(*twist_cmd).angular.x = 0.0;
+	(*twist_cmd).angular.y = 0.0;
+	(*twist_cmd).angular.z = 0.0;
+	
+	// perform action
+	perform_twist_action(duration, twist_commander, twist_cmd, loop_timer);
+}
+
+// execute a twist command for moving forward, for some distance in meters
+void move_forward(double distance, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+	// set command parameters
+	(*twist_cmd).linear.x = MOVE_SPEED;
+	(*twist_cmd).linear.y = 0.0;
+	(*twist_cmd).linear.z = 0.0;
+	(*twist_cmd).angular.x = 0.0;
+	(*twist_cmd).angular.y = 0.0;
+	(*twist_cmd).angular.z = 0.0;
+	
+	// perform action
+	perform_twist_action(distance / MOVE_SPEED, twist_commander, twist_cmd, loop_timer);
+}
+
+// execute a twist command for turning positively or negatively, for some amount of radians
+void make_turn(int direction, double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+	// error checking: snap direction to ceiling/floor
+	if (direction > 1) {
+		direction = 1;
+	}
+	else if (direction < -1) {
+		direction = -1;
+	}
+	
+	// set command parameters
+	(*twist_cmd).linear.x = 0.0;
+	(*twist_cmd).linear.y = 0.0;
+	(*twist_cmd).linear.z = 0.0;
+	(*twist_cmd).angular.x = 0.0;
+	(*twist_cmd).angular.y = 0.0;
+	(*twist_cmd).angular.z = TURN_SPEED * direction;
+	
+	// perform action
+	perform_twist_action(radians / TURN_SPEED, twist_commander, twist_cmd, loop_timer);
+}
+
+// execute a twist command for turning pi/2 radians positively or negatively
+void make_right_angle_turn(int direction, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+	make_turn(direction, M_PI / 2, twist_commander, twist_cmd, loop_timer);
+}
+
 double quaternionToPlanar(geometry_msgs::Quaternion quaternion) {
 	double z = quaternion.z;
 	double w = quaternion.w;
