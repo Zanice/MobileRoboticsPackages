@@ -12,6 +12,8 @@
 
 // robot warm-up time
 const double WARM_UP_TIME = 0.2;
+// robot command transition time
+const double TRANS_TIME = 0.1;
 // robot movement speed value in m/s
 const double MOVE_SPEED = 1.0;
 // robot turn speed value in rads/s
@@ -152,6 +154,7 @@ bool pathCallback(path_trace::PathServiceMessageRequest& request, path_trace::Pa
 			// perform and record the expected result of the turn <ERROR CHECKING?>
 			ROS_INFO("\t<POSE %d> Turning %f radians.", index, turn_phi);
 			make_turn(turn_phi, twist_commander, &twist_cmd, loop_timer);
+			be_stationary(TRANS_TIME, twist_commander, &twist_cmd, loop_timer);
 			current_phi = current_phi + turn_phi;
 		}
 		else {
@@ -166,6 +169,7 @@ bool pathCallback(path_trace::PathServiceMessageRequest& request, path_trace::Pa
 			// perform and record the expected result of the forward movement <ERROR CHECKING?>
 			ROS_INFO("\t<POSE %d> Moving forward %f meters.", index, forward_dist);
 			move_forward(forward_dist, twist_commander, &twist_cmd, loop_timer);
+			be_stationary(TRANS_TIME, twist_commander, &twist_cmd, loop_timer);
 			current_x = pose.position.x;
 			current_y = pose.position.y;
 		}
@@ -195,6 +199,9 @@ int main(int argc, char** argv) {
 	twist_cmd.angular.z = 0.0;
 	ros::Rate timer(1 / DT);
 	loop_timer = &timer;
+	
+	// warm up communications with the robot
+	be_stationary(WARM_UP_TIME, twist_commander, &twist_cmd, loop_timer);
 	
 	ros::ServiceServer service = n.advertiseService("path_trace_service", pathCallback);
 	ROS_INFO("Ready to accept client requests.");
