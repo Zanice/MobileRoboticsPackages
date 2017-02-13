@@ -10,9 +10,10 @@
 #include <geometry_msgs/Twist.h>
 #include <math.h>
 
+// robot warm-up time
+const double WARM_UP_TIME = 0.2;
 // robot movement speed value in m/s
 const double MOVE_SPEED = 1.0;
-
 // robot turn speed value in rads/s
 const double TURN_SPEED = 0.5;
 
@@ -21,16 +22,20 @@ const double DT = 0.01;
 
 // minimum number of command iterations that would make an action worthwhile
 const double THRESHOLD_ITERS = 1;
-
 // threshold for movement adjustment, in m
 const double MOVE_THRESHOLD = MOVE_SPEED * DT * THRESHOLD_ITERS;
-
 // threshold for turn adjustment, in rads
-const double TURN_THRESHOLD = TURN_SPEED * DT * THESHOLD_ITERS;
+const double TURN_THRESHOLD = TURN_SPEED * DT * THRESHOLD_ITERS;
 
+// current pose information variables
 double current_x = 0.0;
 double current_y = 0.0;
 double current_phi = 0.0;
+
+//action publishing variables
+ros::Publisher* twist_commander;
+geometry_msgs::Twist twist_cmd;
+ros::Rate* loop_timer;
 
 // execute a twist message publish over a certain duration
 void perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
@@ -132,30 +137,44 @@ bool pathCallback(path_trace::PathServiceMessageRequest& request, path_trace::Pa
 	double forward_dist;
 	geometry_msgs::Pose pose;
 	for (index = 0; index < pose_count; index++) {
+		ROS_INFO("Beginning processing of pose %d:", index);
 		pose = request.nav_path.poses[index].pose;
 		
 		// display goal pose, current pose information
-		ROS_WARN("<POSE %d> x=%f y=%f phi=%f as DESIRED", index, pose.position.x, pose.position.y, quaternionToPlanar(pose.orientation));
-		ROS_INFO("<POSE %d> Currently at x=%f, y=%f with rotation %f", index, current_x, current_y, current_phi);
+		ROS_WARN("\t<POSE %d> x=%f y=%f phi=%f as DESIRED", index, pose.position.x, pose.position.y, quaternionToPlanar(pose.orientation));
+		ROS_INFO("\t<POSE %d> x=%f y=%f phi=%f as CURRENT", index, current_x, current_y, current_phi);
 		
 		// determine the turn to perform as a subgoal for the pose
 		turn_phi = getDeltaPhi(quaternionToPlanar(pose.orientation), current_phi);
-		ROS_INFO("<POSE %d> Turning %f radians.", index, turn_phi);
 		
-		// perform and record the expected result of the turn <ERROR CHECKING?>
-		
-		current_phi = current_phi + turn_phi;
+		// check proposed turn against threshold for minimum turn
+		if (turn_phi > TURN_THRESHOLD || turn_phi < -TURN_THRESHOLD) {
+			// perform and record the expected result of the turn <ERROR CHECKING?>
+			ROS_INFO("\t<POSE %d> Turning %f radians.", index, turn_phi);
+			make_turn(turn_phi, twist_commander, &twist_cmd, loop_timer);
+			current_phi = current_phi + turn_phi;
+		}
+		else {
+			ROS_WARN("\t<POSE %d> %f RADIANS FALL BELOW THRESHOLD. NO TURNING.", index, turn_phi);
+		}
 		
 		// determine the forward movement distance as a subgoal for the pose
 		forward_dist = getDistanceBetween(current_x, current_y, pose.position.x, pose.position.y);
-		ROS_INFO("<POSE %d> Moving forward %f meters.", index, forward_dist);
 		
-		// perform and record the expected result of the forward movement <ERROR CHECKING?>
-		current_x = pose.position.x;
-		current_y = pose.position.y;
+		// check proposed movement against threshold for minimum movement
+		if (forward_dist > MOVE_THRESHOLD) {
+			// perform and record the expected result of the forward movement <ERROR CHECKING?>
+			ROS_INFO("\t<POSE %d> Moving forward %f meters.", index, forward_dist);
+			move_forward(forward_dist, twist_commander, &twist_cmd, loop_timer);
+			current_x = pose.position.x;
+			current_y = pose.position.y;
+		}
+		else {
+			ROS_WARN("\t<POSE %d> %f METERS FALL BELOW THRESHOLD. NO MOVEMENT.", index, forward_dist);
+		}
 		
 		// report the results of attempting the current pose
-		ROS_WARN("<POSE %d> x=%f y=%f phi=%f as ACTUAL", index, current_x, current_y, current_phi);
+		ROS_WARN("\t<POSE %d> x=%f y=%f phi=%f as RESULT", index, current_x, current_y, current_phi);
 	}
 	
 	return true;
@@ -165,9 +184,20 @@ int main(int argc, char** argv) {
 	ros::init(argc, argv, "path_trace_service");
 	ros::NodeHandle n;
 	
-	ros::Publisher twist_commander = n.advertise<geometry_msgs::Twist>("/robot0/cmd_vel", 1);
+	// initialize global variables for publishing
+	ros::Publisher commander = (n.advertise<geometry_msgs::Twist>("/robot0/cmd_vel", 1));
+	twist_commander = &commander;
+	twist_cmd.linear.x = 0.0;
+	twist_cmd.linear.y = 0.0;
+	twist_cmd.linear.z = 0.0;
+	twist_cmd.angular.x = 0.0;
+	twist_cmd.angular.y = 0.0;
+	twist_cmd.angular.z = 0.0;
+	ros::Rate timer(1 / DT);
+	loop_timer = &timer;
 	
 	ros::ServiceServer service = n.advertiseService("path_trace_service", pathCallback);
 	ROS_INFO("Ready to accept client requests.");
 	ros::spin();
 }
+

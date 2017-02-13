@@ -80,8 +80,6 @@ int main(int argc, char** argv) {
 	ros::NodeHandle n;
 	ros::ServiceClient service = n.serviceClient<path_trace::PathServiceMessage>("path_trace_service");
 	
-	geometry_msgs::Quaternion quaternion;
-	
 	bool wait_message_shown = false;
 	while (!service.exists()) {
 		if (!wait_message_shown) {
@@ -115,3 +113,4 @@ int main(int argc, char** argv) {
 	
 	return 0;
 }
+
