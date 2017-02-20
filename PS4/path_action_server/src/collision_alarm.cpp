@@ -8,6 +8,15 @@
 #include <std_msgs/Bool.h>
 #include <math.h>
 
+// node name
+const char* NODE_NAME = "collision_alarm";
+// name of LIDAR scan topic to subscribe to
+const char* SCAN_TOPIC_NAME = "/robot0/laser0";
+// name of alarm topic to publish to
+const char* ALARM_TOPIC_NAME = "/collision_alarm/alarm";
+// name of minimum distance topic to publish to
+const char* MIN_DIST_TOPIC_NAME = "/collision_alarm/min_dist";
+
 const double MIN_SAFE_DIST = 0.6;
 const double CONE_ANGLE_FROM_MID = 0.8;
 
@@ -83,13 +92,13 @@ void onLaserCallback(const sensor_msgs::LaserScan& laser_scans) {
 }
 
 int main(int argc, char** argv) {
-	ros::init(argc, argv, "dist_alarm");
+	ros::init(argc, argv, NODE_NAME);
 	ros::NodeHandle n;
 	
-	alarm_publisher = n.advertise<std_msgs::Bool>("alarm", 1);
-	dist_publisher = n.advertise<std_msgs::Float32>("dist", 1);
+	alarm_publisher = n.advertise<std_msgs::Bool>(ALARM_TOPIC_NAME, 1);
+	dist_publisher = n.advertise<std_msgs::Float32>(MIN_DIST_TOPIC_NAME, 1);
 	
-	ros::Subscriber lidar_subscriber = n.subscribe("robot0/laser_0", 1, onLaserCallback);
+	ros::Subscriber lidar_subscriber = n.subscribe(SCAN_TOPIC_NAME, 1, onLaserCallback);
 	ros::spin();
 	
 	return 0;

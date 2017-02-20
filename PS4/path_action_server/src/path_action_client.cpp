@@ -5,6 +5,23 @@
 #include <ros/ros.h>
 #include <actionlib/client/simple_action_client.h>
 #include <path_action_server/pathAction.h>
+#include <nav_msgs/Path.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Twist.h>
+#include <std_msgs/Bool.h>
+#include <math.h>
+
+// - - - - - - - - - - - - - - -
+// CONSTANT AND GLOBAL VARIABLES
+// - - - - - - - - - - - - - - -
+
+// node name
+const char* NODE_NAME = "path_action_client";
+// service name
+const char* SERVICE_NAME = "path_action_service";
+// name of alarm topic to subscribe to
+const char* ALARM_TOPIC_NAME = "/collision_alarm/alarm";
 
 // path points, in (x, y) pairs
 const double PATH_POINTS[] = {
@@ -19,29 +36,62 @@ const double PATH_POINTS[] = {
 // the length of the path points array
 const int PATH_POINTS_SIZE = sizeof(PATH_POINTS) / sizeof(PATH_POINTS[0]);
 
-// helper method references
+// the current status of the collision alarm
+bool collision_alarm_ = false;
+
+// - - - - - - - - - -
+// HELPER METHOD STUBS
+// - - - - - - - - - -
+
 geometry_msgs::Quaternion planarToQuaternion(double phi);
 geometry_msgs::Quaternion getIdentityQuaternion();
 geometry_msgs::PoseStamped createPose(double x, double y);
 geometry_msgs::PoseStamped createNextPose(geometry_msgs::PoseStamped* old_pose, double x, double y);
 void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_action_server::pathGoal* path, bool consider_previous);
 
+// - - - - - - - - - -
+// CLASSES AND METHODS
+// - - - - - - - - - -
+
+// callback method on when the collision alarm is raised
+void onCollisionAlarm(const std_msgs::Bool& alarm_msg) {
+	if (alarm_msg.data && !collision_alarm_) {
+		ROS_WARN(">> ALARM RAISED!");
+	}
+	else if (!alarm_msg.data && collision_alarm_) {
+		ROS_WARN(">> Alarm cleared.");
+	}
+	
+	collision_alarm_ = alarm_msg.data;
+}
+
+// callback method on when the forwarded goal has been started by the server
 void onGoalStart() {
 	;
 }
 
+// callback method on when there is feedback from the server on the forwarded goal
 void onGoalFeedback(const path_action_server::pathFeedbackConstPtr& feedback) {
 	;
 }
 
+// callback method on when the forwarded goal is completed by the server
 void onGoalCompletion(const actionlib::SimpleClientGoalState& state, const path_action_server::pathResultConstPtr& result) {
 	;
 }
 
+// - - - - - -
+// MAIN METHOD
+// - - - - - -
+
 int main(int argc, char** argv) {
-	// initialize ROS and the client connection
-	ros::init(argc, argv, "path_action_client");
-	actionlib::SimpleActionClient<path_action_server::pathAction> client("path_action", true);
+	// initialize ROS
+	ros::init(argc, argv, NODE_NAME);
+	ros::NodeHandle n;
+	
+	// initialize subscription to the alarm and the server connection
+	ros::Subscriber alarm_subscriber = n.subscribe(ALARM_TOPIC_NAME, 1, onCollisionAlarm);
+	actionlib::SimpleActionClient<path_action_server::pathAction> client(SERVICE_NAME, true);
 	
 	// wait for a verified server to connect to
 	bool wait_message_shown = false;
@@ -75,9 +125,9 @@ int main(int argc, char** argv) {
 	client.sendGoal(goal, &onGoalCompletion, &onGoalStart, &onGoalFeedback);
 }
 
-// - - - - - - - - - - - - - - - - - - - - -
-// PATH CONSTRUCTION AND MATH HELPER METHODS
-// - - - - - - - - - - - - - - - - - - - - -
+// - - - - - - - -
+// HELPER METHODS
+// - - - - - - - -
 
 // converts a planar phi angle to a quaternion orientation
 geometry_msgs::Quaternion planarToQuaternion(double phi) {
@@ -142,3 +192,4 @@ void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_ac
 	
 	(*path).nav_path.poses.push_back(*pose);
 }
+
