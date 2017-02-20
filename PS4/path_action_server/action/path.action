@@ -1,0 +1,8 @@
+#goal
+nav_msgs/Path nav_path
+---
+#result
+nav_msgs/Path nav_path
+---
+#feedback
+string msg
