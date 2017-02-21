@@ -5,4 +5,4 @@ nav_msgs/Path nav_path
 nav_msgs/Path nav_path
 ---
 #feedback
-string msg
+int32 last_full_pose

@@ -58,7 +58,7 @@ void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_ac
 void onCollisionAlarm(const std_msgs::Bool& alarm_msg) {
 	if (alarm_msg.data && !collision_alarm_) {
 		ROS_WARN(">> ALARM RAISED! Cancelling current goal.");
-		(*client_).cancelGoal();
+		client_->cancelGoal();
 	}
 	else if (!alarm_msg.data && collision_alarm_) {
 		ROS_WARN(">> Alarm cleared.");
@@ -69,17 +69,17 @@ void onCollisionAlarm(const std_msgs::Bool& alarm_msg) {
 
 // callback method on when the forwarded goal has been started by the server
 void onGoalStart() {
-	;
+	ROS_INFO("Action server began our requested path.");
 }
 
 // callback method on when there is feedback from the server on the forwarded goal
 void onGoalFeedback(const path_action_server::pathFeedbackConstPtr& feedback) {
-	;
+	ROS_INFO("Action server successfully completed up to pose %d.", feedback->last_full_pose);
 }
 
 // callback method on when the forwarded goal is completed by the server
 void onGoalCompletion(const actionlib::SimpleClientGoalState& state, const path_action_server::pathResultConstPtr& result) {
-	;
+	ROS_INFO("Action server finished our requested path.");
 }
 
 // - - - - - -
@@ -167,9 +167,9 @@ geometry_msgs::PoseStamped createPose(double x, double y) {
 
 // create a pose from the given (x, y) pair, as a "next step" from a given previous pose
 geometry_msgs::PoseStamped createNextPose(geometry_msgs::PoseStamped* old_pose, double x, double y) {
-	double old_x = (*old_pose).pose.position.x;
-	double old_y = (*old_pose).pose.position.y;
-	double old_z = (*old_pose).pose.position.z;
+	double old_x = old_pose->pose.position.x;
+	double old_y = old_pose->pose.position.y;
+	double old_z = old_pose->pose.position.z;
 	
 	double dx = x - old_x;
 	double dy = y - old_y;
@@ -196,6 +196,6 @@ void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_ac
 		*pose = createPose(x, y);
 	}
 	
-	(*path).nav_path.poses.push_back(*pose);
+	path->nav_path.poses.push_back(*pose);
 }
 

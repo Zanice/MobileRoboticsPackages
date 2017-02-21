@@ -100,6 +100,12 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 	int pose_count = goal->nav_path.poses.size();
 	ROS_WARN("Received path request of %d poses.", pose_count);
 	
+	// set up the instance's variables
+	goal_ = *goal;
+	feedback_.last_full_pose = -1;
+	path_action_server::pathResult result;
+	result_ = result;
+	
 	int index;
 	double turn_phi;
 	double forward_dist;
@@ -152,13 +158,10 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 		
 		// report the results of attempting the current pose
 		ROS_WARN("\t<POSE %d> x=%f y=%f phi=%f as RESULT", index, current_x_, current_y_, current_phi_);
+		
+		feedback_.last_full_pose = index;
+		sas_.publishFeedback(feedback_);
 	}
-	
-	// sas_.isPreemptRequested()
-	// if goal has been cancelled
-	// sas_.setAborted(result_);
-	
-	// sas_.publishFeedback(feedback_);
 	
 	sas_.setSucceeded(result_);
 }
@@ -199,26 +202,31 @@ int main(int argc, char** argv) {
 bool perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
 	double timer = 0.0;
 	while (timer < duration) {
-		if ((*sas).isPreemptRequested()) {
-			(*twist_cmd).linear.x = 0.0;
-			(*twist_cmd).linear.y = 0.0;
-			(*twist_cmd).linear.z = 0.0;
-			(*twist_cmd).angular.x = 0.0;
-			(*twist_cmd).angular.y = 0.0;
-			(*twist_cmd).angular.z = 0.0;
+		// halt the twist if an interrupt comes from the client
+		if (sas->isPreemptRequested()) {
+			// set the twist command to zero lateral and rotational velocity
+			twist_cmd->linear.x = 0.0;
+			twist_cmd->linear.y = 0.0;
+			twist_cmd->linear.z = 0.0;
+			twist_cmd->angular.x = 0.0;
+			twist_cmd->angular.y = 0.0;
+			twist_cmd->angular.z = 0.0;
 			
+			// execute the halt command for the transition time, to ensure the command is received
 			while (timer < TRANS_TIME) {
-				(*twist_commander).publish(*twist_cmd);
+				twist_commander->publish(*twist_cmd);
 				timer += DT;
-				(*loop_timer).sleep();
+				loop_timer->sleep();
 			}
 			
+			// return out while signifying an incomplete action
 			return false;
 		}
 		
-		(*twist_commander).publish(*twist_cmd);
+		// otherwise, perform the requested action for a piece of the allotted time
+		twist_commander->publish(*twist_cmd);
 		timer += DT;
-		(*loop_timer).sleep();
+		loop_timer->sleep();
 	}
 	
 	return true;
@@ -227,12 +235,12 @@ bool perform_twist_action(double duration, ros::Publisher* twist_commander, geom
 // execute a twist command for stationary status, for some duration
 bool be_stationary(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
 	// set command parameters
-	(*twist_cmd).linear.x = 0.0;
-	(*twist_cmd).linear.y = 0.0;
-	(*twist_cmd).linear.z = 0.0;
-	(*twist_cmd).angular.x = 0.0;
-	(*twist_cmd).angular.y = 0.0;
-	(*twist_cmd).angular.z = 0.0;
+	twist_cmd->linear.x = 0.0;
+	twist_cmd->linear.y = 0.0;
+	twist_cmd->linear.z = 0.0;
+	twist_cmd->angular.x = 0.0;
+	twist_cmd->angular.y = 0.0;
+	twist_cmd->angular.z = 0.0;
 	
 	// perform action
 	perform_twist_action(duration, twist_commander, twist_cmd, loop_timer, sas);
@@ -241,12 +249,12 @@ bool be_stationary(double duration, ros::Publisher* twist_commander, geometry_ms
 // execute a twist command for moving forward, for some distance in meters
 bool move_forward(double distance, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
 	// set command parameters
-	(*twist_cmd).linear.x = MOVE_SPEED;
-	(*twist_cmd).linear.y = 0.0;
-	(*twist_cmd).linear.z = 0.0;
-	(*twist_cmd).angular.x = 0.0;
-	(*twist_cmd).angular.y = 0.0;
-	(*twist_cmd).angular.z = 0.0;
+	twist_cmd->linear.x = MOVE_SPEED;
+	twist_cmd->linear.y = 0.0;
+	twist_cmd->linear.z = 0.0;
+	twist_cmd->angular.x = 0.0;
+	twist_cmd->angular.y = 0.0;
+	twist_cmd->angular.z = 0.0;
 	
 	// perform action
 	perform_twist_action(distance / MOVE_SPEED, twist_commander, twist_cmd, loop_timer, sas);
@@ -263,12 +271,12 @@ bool make_turn(int direction, double radians, ros::Publisher* twist_commander, g
 	}
 	
 	// set command parameters
-	(*twist_cmd).linear.x = 0.0;
-	(*twist_cmd).linear.y = 0.0;
-	(*twist_cmd).linear.z = 0.0;
-	(*twist_cmd).angular.x = 0.0;
-	(*twist_cmd).angular.y = 0.0;
-	(*twist_cmd).angular.z = TURN_SPEED * direction;
+	twist_cmd->linear.x = 0.0;
+	twist_cmd->linear.y = 0.0;
+	twist_cmd->linear.z = 0.0;
+	twist_cmd->angular.x = 0.0;
+	twist_cmd->angular.y = 0.0;
+	twist_cmd->angular.z = TURN_SPEED * direction;
 	
 	// perform action
 	perform_twist_action(radians / TURN_SPEED, twist_commander, twist_cmd, loop_timer, sas);
