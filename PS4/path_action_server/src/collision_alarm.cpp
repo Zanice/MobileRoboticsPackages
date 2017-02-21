@@ -11,7 +11,7 @@
 // node name
 const char* NODE_NAME = "collision_alarm";
 // name of LIDAR scan topic to subscribe to
-const char* SCAN_TOPIC_NAME = "/robot0/laser0";
+const char* SCAN_TOPIC_NAME = "/robot0/laser_0";
 // name of alarm topic to publish to
 const char* ALARM_TOPIC_NAME = "/collision_alarm/alarm";
 // name of minimum distance topic to publish to

@@ -32,11 +32,12 @@ const double PATH_POINTS[] = {
 	0.15, 7.0,
 	0.15, 12.0
 };
-
-// the length of the path points array
+// length of the path points array
 const int PATH_POINTS_SIZE = sizeof(PATH_POINTS) / sizeof(PATH_POINTS[0]);
 
-// the current status of the collision alarm
+// client connection to the server
+actionlib::SimpleActionClient<path_action_server::pathAction>* client_;
+// current status of the collision alarm
 bool collision_alarm_ = false;
 
 // - - - - - - - - - -
@@ -56,7 +57,8 @@ void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_ac
 // callback method on when the collision alarm is raised
 void onCollisionAlarm(const std_msgs::Bool& alarm_msg) {
 	if (alarm_msg.data && !collision_alarm_) {
-		ROS_WARN(">> ALARM RAISED!");
+		ROS_WARN(">> ALARM RAISED! Cancelling current goal.");
+		(*client_).cancelGoal();
 	}
 	else if (!alarm_msg.data && collision_alarm_) {
 		ROS_WARN(">> Alarm cleared.");
@@ -92,6 +94,7 @@ int main(int argc, char** argv) {
 	// initialize subscription to the alarm and the server connection
 	ros::Subscriber alarm_subscriber = n.subscribe(ALARM_TOPIC_NAME, 1, onCollisionAlarm);
 	actionlib::SimpleActionClient<path_action_server::pathAction> client(SERVICE_NAME, true);
+	client_ = &client;
 	
 	// wait for a verified server to connect to
 	bool wait_message_shown = false;
@@ -123,6 +126,9 @@ int main(int argc, char** argv) {
 	
 	// send the request to the service
 	client.sendGoal(goal, &onGoalCompletion, &onGoalStart, &onGoalFeedback);
+	
+	// spin the process
+	ros::spin();
 }
 
 // - - - - - - - -

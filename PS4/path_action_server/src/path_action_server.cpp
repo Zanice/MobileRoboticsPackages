@@ -46,7 +46,7 @@ double current_x_ = 0.0;
 double current_y_ = 0.0;
 double current_phi_ = 0.0;
 
-//action publishing variables
+// action publishing variables
 ros::Publisher* twist_commander_;
 geometry_msgs::Twist twist_cmd_;
 ros::Rate* loop_timer_;
@@ -55,12 +55,12 @@ ros::Rate* loop_timer_;
 // HELPER METHOD STUBS
 // - - - - - - - - - -
 
-void perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer);
-void be_stationary(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer);
-void move_forward(double distance, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer);
-void make_turn(int direction, double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer);
-void make_turn(double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer);
-void make_right_angle_turn(int direction, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer);
+bool perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
+bool be_stationary(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
+bool move_forward(double distance, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
+bool make_turn(int direction, double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
+bool make_turn(double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
+bool make_right_angle_turn(int direction, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
 double quaternionToPlanar(geometry_msgs::Quaternion quaternion);
 double getDistanceBetween(double x1, double y1, double x2, double y2);
 double getDeltaPhi(double phi, double reference);
@@ -78,7 +78,7 @@ class PathActionServer {
 		path_action_server::pathGoal goal_;
 		path_action_server::pathResult result_;
 		path_action_server::pathFeedback feedback_;
-	
+		
 	public:
 		PathActionServer();
 		
@@ -91,18 +91,6 @@ class PathActionServer {
 
 // server class constructor
 PathActionServer::PathActionServer() : sas_(n_, SERVICE_NAME, boost::bind(&PathActionServer::executeGoal, this, _1), false) {
-	// initialize global variables for publishing
-	ros::Publisher commander = n_.advertise<geometry_msgs::Twist>(VEL_TOPIC_NAME, 1);
-	twist_commander_ = &commander;
-	twist_cmd_.linear.x = 0.0;
-	twist_cmd_.linear.y = 0.0;
-	twist_cmd_.linear.z = 0.0;
-	twist_cmd_.angular.x = 0.0;
-	twist_cmd_.angular.y = 0.0;
-	twist_cmd_.angular.z = 0.0;
-	ros::Rate timer(1 / DT);
-	loop_timer_ = &timer;
-	
 	// start the service
 	sas_.start();
 }
@@ -116,6 +104,7 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 	double turn_phi;
 	double forward_dist;
 	geometry_msgs::Pose pose;
+	bool success;
 	for (index = 0; index < pose_count; index++) {
 		ROS_INFO("Beginning processing of pose %d:", index);
 		pose = goal->nav_path.poses[index].pose;
@@ -131,8 +120,8 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 		if (turn_phi > TURN_THRESHOLD || turn_phi < -TURN_THRESHOLD) {
 			// perform and record the expected result of the turn <ERROR CHECKING?>
 			ROS_INFO("\t<POSE %d> Turning %f radians.", index, turn_phi);
-			make_turn(turn_phi, twist_commander_, &twist_cmd_, loop_timer_);
-			be_stationary(TRANS_TIME, twist_commander_, &twist_cmd_, loop_timer_);
+			make_turn(turn_phi, twist_commander_, &twist_cmd_, loop_timer_, &sas_);
+			be_stationary(TRANS_TIME, twist_commander_, &twist_cmd_, loop_timer_, &sas_);
 			current_phi_ = current_phi_ + turn_phi;
 		}
 		else {
@@ -146,8 +135,14 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 		if (forward_dist > MOVE_THRESHOLD) {
 			// perform and record the expected result of the forward movement <ERROR CHECKING?>
 			ROS_INFO("\t<POSE %d> Moving forward %f meters.", index, forward_dist);
-			move_forward(forward_dist, twist_commander_, &twist_cmd_, loop_timer_);
-			be_stationary(TRANS_TIME, twist_commander_, &twist_cmd_, loop_timer_);
+			success = move_forward(forward_dist, twist_commander_, &twist_cmd_, loop_timer_, &sas_) & be_stationary(TRANS_TIME, twist_commander_, &twist_cmd_, loop_timer_, &sas_);
+			
+			if (!success) {
+				ROS_ERROR("Current path was aborted by the client.");
+				sas_.setAborted(result_);
+				return;
+			}
+			
 			current_x_ = pose.position.x;
 			current_y_ = pose.position.y;
 		}
@@ -173,10 +168,26 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 // - - - - - -
 
 int main(int argc, char** argv) {
+	// initialize ROS
 	ros::init(argc, argv, NODE_NAME);
+	ros::NodeHandle n;
 	
+	// initialize global variables for publishing
+	ros::Publisher commander = n.advertise<geometry_msgs::Twist>(VEL_TOPIC_NAME, 1);
+	twist_commander_ = &commander;
+	twist_cmd_.linear.x = 0.0;
+	twist_cmd_.linear.y = 0.0;
+	twist_cmd_.linear.z = 0.0;
+	twist_cmd_.angular.x = 0.0;
+	twist_cmd_.angular.y = 0.0;
+	twist_cmd_.angular.z = 0.0;
+	ros::Rate timer(1 / DT);
+	loop_timer_ = &timer;
+	
+	// create an instance of the action server
 	PathActionServer server;
 	
+	// spin the process
 	ros::spin();
 }
 
@@ -185,28 +196,36 @@ int main(int argc, char** argv) {
 // - - - - - - - -
 
 // execute a twist message publish over a certain duration
-void perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
-	double px = (*twist_cmd).linear.x;
-	double py = (*twist_cmd).linear.y;
-	double pz = (*twist_cmd).linear.z;
-	double rx = (*twist_cmd).angular.x;
-	double ry = (*twist_cmd).angular.y;
-	double rz = (*twist_cmd).angular.z;
-	ROS_INFO("PERFORMING TWIST: px=%f py=%f pz=%f rx=%f ry=%f rz=%f", px, py, pz, rx, ry, rz);
-	
+bool perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
 	double timer = 0.0;
 	while (timer < duration) {
-		ROS_INFO("MOVING...");
+		if ((*sas).isPreemptRequested()) {
+			(*twist_cmd).linear.x = 0.0;
+			(*twist_cmd).linear.y = 0.0;
+			(*twist_cmd).linear.z = 0.0;
+			(*twist_cmd).angular.x = 0.0;
+			(*twist_cmd).angular.y = 0.0;
+			(*twist_cmd).angular.z = 0.0;
+			
+			while (timer < TRANS_TIME) {
+				(*twist_commander).publish(*twist_cmd);
+				timer += DT;
+				(*loop_timer).sleep();
+			}
+			
+			return false;
+		}
+		
 		(*twist_commander).publish(*twist_cmd);
-		ROS_INFO("INCREMENTING...");
 		timer += DT;
-		ROS_INFO("SLEEPING...");
 		(*loop_timer).sleep();
 	}
+	
+	return true;
 }
 
 // execute a twist command for stationary status, for some duration
-void be_stationary(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+bool be_stationary(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
 	// set command parameters
 	(*twist_cmd).linear.x = 0.0;
 	(*twist_cmd).linear.y = 0.0;
@@ -216,11 +235,11 @@ void be_stationary(double duration, ros::Publisher* twist_commander, geometry_ms
 	(*twist_cmd).angular.z = 0.0;
 	
 	// perform action
-	perform_twist_action(duration, twist_commander, twist_cmd, loop_timer);
+	perform_twist_action(duration, twist_commander, twist_cmd, loop_timer, sas);
 }
 
 // execute a twist command for moving forward, for some distance in meters
-void move_forward(double distance, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+bool move_forward(double distance, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
 	// set command parameters
 	(*twist_cmd).linear.x = MOVE_SPEED;
 	(*twist_cmd).linear.y = 0.0;
@@ -230,11 +249,11 @@ void move_forward(double distance, ros::Publisher* twist_commander, geometry_msg
 	(*twist_cmd).angular.z = 0.0;
 	
 	// perform action
-	perform_twist_action(distance / MOVE_SPEED, twist_commander, twist_cmd, loop_timer);
+	perform_twist_action(distance / MOVE_SPEED, twist_commander, twist_cmd, loop_timer, sas);
 }
 
 // execute a twist command for turning positively or negatively, for some amount of radians
-void make_turn(int direction, double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+bool make_turn(int direction, double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
 	// error checking: snap direction to ceiling/floor
 	if (direction > 1) {
 		direction = 1;
@@ -252,22 +271,22 @@ void make_turn(int direction, double radians, ros::Publisher* twist_commander, g
 	(*twist_cmd).angular.z = TURN_SPEED * direction;
 	
 	// perform action
-	perform_twist_action(radians / TURN_SPEED, twist_commander, twist_cmd, loop_timer);
+	perform_twist_action(radians / TURN_SPEED, twist_commander, twist_cmd, loop_timer, sas);
 }
 
 // execute a twist command for some amount of positive or negative radians
-void make_turn(double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
+bool make_turn(double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
 	if (radians > 0) {
-		make_turn(1, radians, twist_commander, twist_cmd, loop_timer);
+		make_turn(1, radians, twist_commander, twist_cmd, loop_timer, sas);
 	}
 	else {
-		make_turn(-1, radians * -1, twist_commander, twist_cmd, loop_timer);
+		make_turn(-1, radians * -1, twist_commander, twist_cmd, loop_timer, sas);
 	}
 }
 
 // execute a twist command for turning pi/2 radians positively or negatively
-void make_right_angle_turn(int direction, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer) {
-	make_turn(direction, M_PI / 2, twist_commander, twist_cmd, loop_timer);
+bool make_right_angle_turn(int direction, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
+	make_turn(direction, M_PI / 2, twist_commander, twist_cmd, loop_timer, sas);
 }
 
 // assuming a quaternion representing z-axis rotation, converts a quaternion orientation to a planar angle
