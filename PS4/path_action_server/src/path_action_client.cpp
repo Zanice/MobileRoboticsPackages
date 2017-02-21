@@ -79,7 +79,23 @@ void onGoalFeedback(const path_action_server::pathFeedbackConstPtr& feedback) {
 
 // callback method on when the forwarded goal is completed by the server
 void onGoalCompletion(const actionlib::SimpleClientGoalState& state, const path_action_server::pathResultConstPtr& result) {
-	ROS_INFO("Action server finished our requested path.");
+	int pose_count = result->nav_path.poses.size();
+	
+	if (pose_count == 0) {
+		ROS_INFO("Action server finished our requested path.");
+	}
+	else {
+		ROS_ERROR("You done fucked up, sir.");
+	}
+	
+	
+	//int index;
+	//int pose_count = goal->nav_path.poses.size();
+	//geometry_msgs::PoseStamped current_pose;
+	//for (index = last_full_pose + 1; index < pose_count; index++) {
+	//	current_pose = goal->nav_path.poses[index];
+	//	result->nav_path.poses.push_back(current_pose);
+	//}
 }
 
 // - - - - - -
