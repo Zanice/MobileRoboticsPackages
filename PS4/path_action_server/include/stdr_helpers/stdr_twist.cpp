@@ -1,7 +1,6 @@
 #include "stdr_twist.h"
 
 #include <ros/ros.h>
-#include <actionlib/server/simple_action_server.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Quaternion.h>
 #include <math.h>
@@ -27,45 +26,22 @@ TwistCommander::TwistCommander(ros::Publisher* twist_commander, ros::Rate* loop_
 }
 
 double TwistCommander::performTwist(double duration) {
-	double timer = 0.0;
-	
-	while (timer < duration) {
-		twist_commander_->publish(*twist_cmd_);
-		timer += dt_;
-		loop_timer_->sleep();
+	while (duration > 0) {
+		duration = performTwistIter(duration);
 	}
 	
-	return 0.0;
+	return duration;
 }
 
-
-template <class T> double TwistCommander::performTwist(double duration, actionlib::SimpleActionServer<T>* sas) {
-	double timer = 0.0;
-	
-	while (timer < duration) {
-		if (sas->isPreemptRequested()) {
-			twist_cmd_->linear.x = 0.0;
-			twist_cmd_->linear.y = 0.0;
-			twist_cmd_->linear.z = 0.0;
-			twist_cmd_->angular.x = 0.0;
-			twist_cmd_->angular.y = 0.0;
-			twist_cmd_->angular.z = 0.0;
-			
-			while (timer < TRANS_TIME_) {
-				twist_commander_->publish(*twist_cmd_);
-				timer += dt_;
-				loop_timer_->sleep();
-			}
-			
-			return 1.0;
-		}
-		
-		twist_commander_->publish(*twist_cmd_);
-		timer += dt_;
-		loop_timer_->sleep();
+double TwistCommander::performTwistIter(double duration) {
+	if (duration < 0) {
+		return duration;
 	}
 	
-	return 0.0;
+	twist_commander_->publish(*twist_cmd_);
+	loop_timer_->sleep();
+	
+	return duration - dt_;
 }
 
 double TwistCommander::performStationary(double duration) {
@@ -79,7 +55,7 @@ double TwistCommander::performStationary(double duration) {
 	return performTwist(duration);
 }
 
-template <class T> double TwistCommander::performStationary(double duration, actionlib::SimpleActionServer<T>* sas) {
+double TwistCommander::performStationaryIter(double duration) {
 	twist_cmd_->linear.x = 0.0;
 	twist_cmd_->linear.y = 0.0;
 	twist_cmd_->linear.z = 0.0;
@@ -87,7 +63,7 @@ template <class T> double TwistCommander::performStationary(double duration, act
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = 0.0;
 	
-	return performTwist(duration, sas);
+	return performTwistIter(duration);
 }
 
 double TwistCommander::performForward(double distance) {
@@ -101,7 +77,7 @@ double TwistCommander::performForward(double distance) {
 	return performTwist(distance / MOVE_SPEED_);
 }
 
-template <class T> double TwistCommander::performForward(double distance, actionlib::SimpleActionServer<T>* sas) {
+double TwistCommander::performForwardIter(double distance) {
 	twist_cmd_->linear.x = MOVE_SPEED_;
 	twist_cmd_->linear.y = 0.0;
 	twist_cmd_->linear.z = 0.0;
@@ -109,7 +85,7 @@ template <class T> double TwistCommander::performForward(double distance, action
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = 0.0;
 	
-	return performTwist(distance / MOVE_SPEED_, sas);
+	return performTwistIter(distance / MOVE_SPEED_) * MOVE_SPEED_;
 }
 
 double TwistCommander::performTurn(int direction, double radians) {
@@ -136,7 +112,7 @@ double TwistCommander::performTurn(int direction, double radians) {
 	return performTwist(radians / TURN_SPEED_);
 }
 
-template <class T> double TwistCommander::performTurn(int direction, double radians, actionlib::SimpleActionServer<T>* sas) {
+double TwistCommander::performTurnIter(int direction, double radians) {
 	// ERROR RESOLVING: make negative radians positive
 	if (radians < 0) {
 		radians *= -1;
@@ -157,15 +133,7 @@ template <class T> double TwistCommander::performTurn(int direction, double radi
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = TURN_SPEED_ * direction;
 	
-	return performTwist(radians / TURN_SPEED_, sas);
-}
-
-double TwistCommander::performRightAngleTurn(int direction) {
-	return performTurn(direction, M_PI / 2);
-}
-
-template <class T> double TwistCommander::performRightAngleTurn(int direction, actionlib::SimpleActionServer<T>* sas) {
-	return performTurn(direction, M_PI / 2, sas);
+	return performTwistIter(radians / TURN_SPEED_) * TURN_SPEED_;
 }
 
 void TwistCommander::configureTwistParameters(double move_speed, double turn_speed, double trans_time) {
@@ -175,15 +143,11 @@ void TwistCommander::configureTwistParameters(double move_speed, double turn_spe
 }
 
 double TwistCommander::cmdStationary(double duration) {
-	double remaining = performStationary(duration);
-	
-	return remaining;
+	return performStationary(duration);
 }
 
-template <class T> double TwistCommander::cmdStationary(double duration, actionlib::SimpleActionServer<T>* sas) {
-	double remaining = performStationary(duration, sas);
-	
-	return remaining;
+double TwistCommander::cmdStationaryIter(double duration) {
+	return performStationaryIter(duration);
 }
 
 double TwistCommander::cmdForward(double distance) {
@@ -193,11 +157,38 @@ double TwistCommander::cmdForward(double distance) {
 	return remaining;
 }
 
-template <class T> double TwistCommander::cmdForward(double distance, actionlib::SimpleActionServer<T>* sas) {
-	double remaining = performForward(distance, sas);
+double TwistCommander::cmdForwardIter(double distance) {
+	return performForwardIter(distance);
+}
+
+//template <class T> double TwistCommander::cmdForward(double distance, actionlib::SimpleActionServer<T>* sas) {
+//	double remaining = performForward(distance, sas);
+//	performStationary(TRANS_TIME_);
+//	
+//	return remaining;
+//}
+
+double TwistCommander::cmdTurn(double radians) {
+	int direction = 1;
+	if (radians < 0) {
+		direction = -1;
+		radians *= -1;
+	}
+	
+	double remaining = performTurn(direction, radians);
 	performStationary(TRANS_TIME_);
 	
 	return remaining;
+}
+
+double TwistCommander::cmdTurnIter(double radians) {
+	int direction = 1;
+	if (radians < 0) {
+		direction = -1;
+		radians *= -1;
+	}
+	
+	return performTurnIter(direction, radians);
 }
 
 double TwistCommander::cmdTurn(int direction, double radians) {
@@ -207,25 +198,8 @@ double TwistCommander::cmdTurn(int direction, double radians) {
 	return remaining;
 }
 
-template <class T> double TwistCommander::cmdTurn(int direction, double radians, actionlib::SimpleActionServer<T>* sas) {
-	double remaining = performTurn(direction, radians, sas);
-	performStationary(TRANS_TIME_);
-	
-	return remaining;
-}
-
-double TwistCommander::cmdRightAngleTurn(int direction) {
-	double remaining = performRightAngleTurn(direction);
-	performStationary(TRANS_TIME_);
-	
-	return remaining;
-}
-
-template <class T> double TwistCommander::cmdRightAngleTurn(int direction, actionlib::SimpleActionServer<T>* sas) {
-	double remaining = performRightAngleTurn(direction, sas);
-	performStationary(TRANS_TIME_);
-	
-	return remaining;
+double TwistCommander::cmdTurnIter(int direction, double radians) {
+	return performTurnIter(direction, radians);
 }
 
 // -------------------------------------------------

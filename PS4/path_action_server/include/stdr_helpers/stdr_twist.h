@@ -15,15 +15,13 @@ class TwistCommander {
 		geometry_msgs::Twist* twist_cmd_;
 		
 		double performTwist(double duration);
-		template <class T> double performTwist(double duration, actionlib::SimpleActionServer<T>* sas);
+		double performTwistIter(double duration);
 		double performStationary(double duration);
-		template <class T> double performStationary(double duration, actionlib::SimpleActionServer<T>* sas);
+		double performStationaryIter(double duration);
 		double performForward(double distance);
-		template <class T> double performForward(double distance, actionlib::SimpleActionServer<T>* sas);
+		double performForwardIter(double distance);
 		double performTurn(int direction, double radians);
-		template <class T> double performTurn(int direction, double radians, actionlib::SimpleActionServer<T>* sas);
-		double performRightAngleTurn(int direction);
-		template <class T> double performRightAngleTurn(int direction, actionlib::SimpleActionServer<T>* sas);
+		double performTurnIter(int direction, double radians);
 		
 	public:
 		TwistCommander(ros::Publisher* twist_commander, ros::Rate* loop_timer, double dt);
@@ -31,13 +29,13 @@ class TwistCommander {
 		void configureTwistParameters(double move_speed, double turn_speed, double trans_time);
 		
 		double cmdStationary(double duration);
-		template <class T> double cmdStationary(double duration, actionlib::SimpleActionServer<T>* sas);
+		double cmdStationaryIter(double duration);
 		double cmdForward(double distance);
-		template <class T> double cmdForward(double distance, actionlib::SimpleActionServer<T>* sas);
+		double cmdForwardIter(double distance);
+		double cmdTurn(double radians);
+		double cmdTurnIter(double radians);
 		double cmdTurn(int direction, double radians);
-		template <class T> double cmdTurn(int direction, double radians, actionlib::SimpleActionServer<T>* sas);
-		double cmdRightAngleTurn(int direction);
-		template <class T> double cmdRightAngleTurn(int direction, actionlib::SimpleActionServer<T>* sas);
+		double cmdTurnIter(int direction, double radians);
 };
 
 double quaternionToPlanar(geometry_msgs::Quaternion quaternion);

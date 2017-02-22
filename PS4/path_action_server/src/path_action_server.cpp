@@ -120,8 +120,8 @@ void PathActionServer::onFailedGoal(path_action_server::pathGoal* goal, path_act
 
 // receives and executes a goal from the client
 void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_action_server::pathAction>::GoalConstPtr& goal) {
-	TwistCommander t(twist_commander_, loop_timer_, DT);
-	//t.linkSAS(sas_);
+	// create a twist commander instance
+	TwistCommander commander(twist_commander_, loop_timer_, DT);
 	
 	int pose_count = goal->nav_path.poses.size();
 	ROS_WARN("Received path request of %d poses.", pose_count);
@@ -134,9 +134,10 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 	
 	int index;
 	double turn_phi;
+	int turn_dir;
 	double forward_dist;
 	geometry_msgs::Pose pose;
-	bool finishedTwist;
+	double twist_left;
 	for (index = 0; index < pose_count; index++) {
 		ROS_INFO("Beginning processing of pose %d:", index);
 		pose = goal->nav_path.poses[index].pose;
@@ -147,15 +148,24 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 		
 		// determine the turn to perform as a subgoal for the pose
 		turn_phi = getDeltaPhi(quaternionToPlanar(pose.orientation), current_phi_);
+		turn_dir = 1;
+		if (turn_phi < 0) {
+			turn_dir = -1;
+			turn_phi *= -1;
+		}
 		
 		// check proposed turn against threshold for minimum turn
 		if (turn_phi > TURN_THRESHOLD || turn_phi < -TURN_THRESHOLD) {
 			// perform and record the expected result of the turn <ERROR CHECKING?>
 			ROS_INFO("\t<POSE %d> Turning %f radians.", index, turn_phi);
-			finishedTwist = make_turn(turn_phi, twist_commander_, &twist_cmd_, loop_timer_, &sas_) & be_stationary(TRANS_TIME, twist_commander_, &twist_cmd_, loop_timer_, &sas_);
+			twist_left = turn_phi;
+			while (twist_left > 0 && !sas_.isPreemptRequested()) {
+				ROS_INFO("INSIDE LOOP");
+				twist_left = commander.cmdTurnIter(turn_dir, twist_left);
+			}
 			
-			// if the forward movement was interrupted, run the abort procedure
-			if (!finishedTwist) {
+			// if the turn was interrupted, run the abort procedure
+			if (twist_left > 0) {
 				onFailedGoal(&goal_, &result_, &sas_, feedback_.last_full_pose);
 				return;
 			}
@@ -167,16 +177,21 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 		}
 		
 		// determine the forward movement distance as a subgoal for the pose
-		forward_dist = getDistanceBetween(current_x_, current_y_, pose.position.x, pose.position.y);
+		forward_dist = distanceBetweenPoints(current_x_, current_y_, pose.position.x, pose.position.y);
 		
 		// check proposed movement against threshold for minimum movement
 		if (forward_dist > MOVE_THRESHOLD) {
 			// perform and record the expected result of the forward movement <ERROR CHECKING?>
 			ROS_INFO("\t<POSE %d> Moving forward %f meters.", index, forward_dist);
-			finishedTwist = move_forward(forward_dist, twist_commander_, &twist_cmd_, loop_timer_, &sas_) & be_stationary(TRANS_TIME, twist_commander_, &twist_cmd_, loop_timer_, &sas_);
+			twist_left = forward_dist;
+			while (twist_left > 0 && !sas_.isPreemptRequested()) {
+				ROS_INFO("INSIDE LOOP");
+				twist_left = commander.cmdForwardIter(twist_left);
+			}
+			
 			
 			// if the forward movement was interrupted, run the abort procedure
-			if (!finishedTwist) {
+			if (twist_left > 0) {
 				onFailedGoal(&goal_, &result_, &sas_, feedback_.last_full_pose);
 				return;
 			}
@@ -224,127 +239,5 @@ int main(int argc, char** argv) {
 	
 	// spin the process
 	ros::spin();
-}
-
-// - - - - - - - -
-// HELPER METHODS
-// - - - - - - - -
-
-// execute a twist message publish over a certain duration
-bool perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
-	double timer = 0.0;
-	while (timer < duration) {
-		// halt the twist if an interrupt comes from the client
-		if (sas->isPreemptRequested()) {
-			// set the twist command to zero lateral and rotational velocity
-			twist_cmd->linear.x = 0.0;
-			twist_cmd->linear.y = 0.0;
-			twist_cmd->linear.z = 0.0;
-			twist_cmd->angular.x = 0.0;
-			twist_cmd->angular.y = 0.0;
-			twist_cmd->angular.z = 0.0;
-			
-			// execute the halt command for the transition time, to ensure the command is received
-			while (timer < TRANS_TIME) {
-				twist_commander->publish(*twist_cmd);
-				timer += DT;
-				loop_timer->sleep();
-			}
-			
-			// return out while signifying an incomplete action
-			return false;
-		}
-		
-		// otherwise, perform the requested action for a piece of the allotted time
-		twist_commander->publish(*twist_cmd);
-		timer += DT;
-		loop_timer->sleep();
-	}
-	
-	return true;
-}
-
-// execute a twist command for stationary status, for some duration
-bool be_stationary(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
-	// set command parameters
-	twist_cmd->linear.x = 0.0;
-	twist_cmd->linear.y = 0.0;
-	twist_cmd->linear.z = 0.0;
-	twist_cmd->angular.x = 0.0;
-	twist_cmd->angular.y = 0.0;
-	twist_cmd->angular.z = 0.0;
-	
-	// perform action
-	perform_twist_action(duration, twist_commander, twist_cmd, loop_timer, sas);
-}
-
-// execute a twist command for moving forward, for some distance in meters
-bool move_forward(double distance, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
-	// set command parameters
-	twist_cmd->linear.x = MOVE_SPEED;
-	twist_cmd->linear.y = 0.0;
-	twist_cmd->linear.z = 0.0;
-	twist_cmd->angular.x = 0.0;
-	twist_cmd->angular.y = 0.0;
-	twist_cmd->angular.z = 0.0;
-	
-	// perform action
-	perform_twist_action(distance / MOVE_SPEED, twist_commander, twist_cmd, loop_timer, sas);
-}
-
-// execute a twist command for turning positively or negatively, for some amount of radians
-bool make_turn(int direction, double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
-	// error checking: snap direction to ceiling/floor
-	if (direction > 1) {
-		direction = 1;
-	}
-	else if (direction < -1) {
-		direction = -1;
-	}
-	
-	// set command parameters
-	twist_cmd->linear.x = 0.0;
-	twist_cmd->linear.y = 0.0;
-	twist_cmd->linear.z = 0.0;
-	twist_cmd->angular.x = 0.0;
-	twist_cmd->angular.y = 0.0;
-	twist_cmd->angular.z = TURN_SPEED * direction;
-	
-	// perform action
-	perform_twist_action(radians / TURN_SPEED, twist_commander, twist_cmd, loop_timer, sas);
-}
-
-// execute a twist command for some amount of positive or negative radians
-bool make_turn(double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
-	if (radians > 0) {
-		make_turn(1, radians, twist_commander, twist_cmd, loop_timer, sas);
-	}
-	else {
-		make_turn(-1, radians * -1, twist_commander, twist_cmd, loop_timer, sas);
-	}
-}
-
-// execute a twist command for turning pi/2 radians positively or negatively
-bool make_right_angle_turn(int direction, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas) {
-	make_turn(direction, M_PI / 2, twist_commander, twist_cmd, loop_timer, sas);
-}
-
-// assuming a quaternion representing z-axis rotation, converts a quaternion orientation to a planar angle
-double quaternionToPlanar(geometry_msgs::Quaternion quaternion) {
-	double z = quaternion.z;
-	double w = quaternion.w;
-	double phi = 2 * atan2(z, w);
-	
-	return phi;
-}
-
-// finds the distance between two points
-double getDistanceBetween(double x1, double y1, double x2, double y2) {
-	return sqrt(pow((x2 - x1), 2.0) + pow((y2 - y1), 2.0));
-}
-
-// finds the change in angle from some reference angle to phi
-double getDeltaPhi(double phi, double reference) {
-	return phi - reference;
 }
 
