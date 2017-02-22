@@ -50,7 +50,6 @@ double current_phi_ = 0.0;
 
 // action publishing variables
 ros::Publisher* twist_commander_;
-geometry_msgs::Twist twist_cmd_;
 ros::Rate* loop_timer_;
 
 // - - - - - - - - - -
@@ -162,6 +161,7 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 			while (twist_left > 0 && !sas_.isPreemptRequested()) {
 				ROS_INFO("INSIDE LOOP");
 				twist_left = commander.cmdTurnIter(turn_dir, twist_left);
+				ROS_INFO("OUTSIDE LOOP");
 			}
 			
 			// if the turn was interrupted, run the abort procedure
@@ -186,7 +186,11 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 			twist_left = forward_dist;
 			while (twist_left > 0 && !sas_.isPreemptRequested()) {
 				ROS_INFO("INSIDE LOOP");
-				twist_left = commander.cmdForwardIter(twist_left);
+				//twist_left = commander.cmdForwardIter(twist_left);
+				commander.cmdForwardIter(twist_left);
+				ROS_INFO("DONE");
+				twist_left -= 0.01;
+				ROS_INFO("OUTSIDE LOOP");
 			}
 			
 			
@@ -225,12 +229,6 @@ int main(int argc, char** argv) {
 	// initialize global variables for publishing
 	ros::Publisher commander = n.advertise<geometry_msgs::Twist>(VEL_TOPIC_NAME, 1);
 	twist_commander_ = &commander;
-	twist_cmd_.linear.x = 0.0;
-	twist_cmd_.linear.y = 0.0;
-	twist_cmd_.linear.z = 0.0;
-	twist_cmd_.angular.x = 0.0;
-	twist_cmd_.angular.y = 0.0;
-	twist_cmd_.angular.z = 0.0;
 	ros::Rate timer(1 / DT);
 	loop_timer_ = &timer;
 	
