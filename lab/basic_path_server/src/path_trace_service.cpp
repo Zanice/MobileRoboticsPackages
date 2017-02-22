@@ -15,9 +15,11 @@ const double WARM_UP_TIME = 0.2;
 // robot command transition time
 const double TRANS_TIME = 0.1;
 // robot movement speed value in m/s
-const double MOVE_SPEED = 1.0;
+const double MOVE_SPEED = 0.4;
 // robot turn speed value in rads/s
-const double TURN_SPEED = 0.5;
+const double TURN_SPEED = 0.3;
+// time buffer tacked on to rotation commands
+const double TURN_WARM_UP_TIME = 1.0;
 
 // update rate
 const double DT = 0.01;
@@ -96,7 +98,7 @@ void make_turn(int direction, double radians, ros::Publisher* twist_commander, g
 	(*twist_cmd).angular.z = TURN_SPEED * direction;
 	
 	// perform action
-	perform_twist_action(radians / TURN_SPEED, twist_commander, twist_cmd, loop_timer);
+	perform_twist_action((radians / TURN_SPEED) + TURN_WARM_UP_TIME, twist_commander, twist_cmd, loop_timer);
 }
 
 // execute a twist command for some amount of positive or negative radians
@@ -189,7 +191,7 @@ int main(int argc, char** argv) {
 	ros::NodeHandle n;
 	
 	// initialize global variables for publishing
-	ros::Publisher commander = (n.advertise<geometry_msgs::Twist>("/robot0/cmd_vel", 1));
+	ros::Publisher commander = (n.advertise<geometry_msgs::Twist>("/cmd_vel", 1));
 	twist_commander = &commander;
 	twist_cmd.linear.x = 0.0;
 	twist_cmd.linear.y = 0.0;

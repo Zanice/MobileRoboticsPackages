@@ -10,12 +10,10 @@
 #include <math.h>
 
 const double PATH_POINTS[] = {
-	3.0, 0.0,
-	7.0, 4.0,
-	7.0, 5.25,
-	1.9, 5.25,
-	0.15, 7.0,
-	0.15, 12.0
+	1.0, 0.0,
+	3.0, 1.0,
+	2.0, -1.0,
+	0.0, 0.0
 };
 const int PATH_POINTS_SIZE = sizeof(PATH_POINTS) / sizeof(PATH_POINTS[0]);
 
