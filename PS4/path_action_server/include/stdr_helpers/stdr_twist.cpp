@@ -26,12 +26,15 @@ TwistCommander::TwistCommander(ros::Publisher* twist_commander, ros::Rate* loop_
 }
 
 double TwistCommander::performTwist(double duration) {
-	while (duration > 0) {
-		duration = performTwistIter(duration);
+	double remaining = duration;
+	double now_remaining;
+	
+	while (remaining > 0) {
+		now_remaining = performTwistIter(remaining);
+		remaining = now_remaining;
 	}
 	
-	//double remaining = duration;
-	return 0.0;
+	return remaining;
 }
 
 double TwistCommander::performTwistIter(double duration) {
@@ -42,7 +45,9 @@ double TwistCommander::performTwistIter(double duration) {
 	twist_commander_->publish(*twist_cmd_);
 	loop_timer_->sleep();
 	
-	return duration - dt_;
+	double remaining = duration - dt_;
+	
+	return remaining;
 }
 
 double TwistCommander::performStationary(double duration) {
@@ -79,7 +84,7 @@ double TwistCommander::performForward(double distance) {
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = 0.0;
 	
-	double remaining = performTwist(distance / move_speed_);
+	double remaining = performTwist(distance / move_speed_) * move_speed_;
 	
 	return remaining;
 }
@@ -118,15 +123,9 @@ double TwistCommander::performTurn(int direction, double radians) {
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = turn_speed_ * direction;
 	
-	ROS_INFO("INTO TURN");
+	double remaining = performTwist(radians / turn_speed_) * turn_speed_;
 	
-	//double remaining = performTwist(radians / turn_speed_);
-	//ROS_INFO("OUT OF TURN %f", remaining);
-	
-	performTwist(radians / turn_speed_);
-	ROS_INFO("OUT OF TURN");
-	
-	return 0.0;
+	return remaining;
 }
 
 double TwistCommander::performTurnIter(int direction, double radians) {
@@ -164,8 +163,6 @@ void TwistCommander::configureTwistParameters(double move_speed, double turn_spe
 double TwistCommander::cmdStationary(double duration) {
 	double remaining = performStationary(duration);
 	
-	ROS_INFO("Returning stat");
-	
 	return remaining;
 }
 
@@ -195,18 +192,8 @@ double TwistCommander::cmdTurn(double radians) {
 		radians *= -1;
 	}
 	
-	//double remaining = performTurn(direction, radians);
-	performTurn(direction, radians);
-	
-	//ROS_INFO("Completed turn: %f", remaining);
-	ROS_INFO("Completed turn");
-	
-	performStationary(trans_time_);
-	
-	ROS_INFO("Returning turn");
-	
-	//return remaining;
-	return 0.0;
+	double remaining = performTurn(direction, radians);
+	return remaining;
 }
 
 double TwistCommander::cmdTurnIter(double radians) {
@@ -239,6 +226,20 @@ double rightAnglePhi() {
 	return M_PI / 2;
 }
 
+geometry_msgs::Quaternion getIdentityQuaternion() {
+	return planarToQuaternion(0.0);
+}
+
+geometry_msgs::Quaternion planarToQuaternion(double phi) {
+	geometry_msgs::Quaternion q;
+	q.x = 0.0;
+	q.y = 0.0;
+	q.z = sin(phi / 2);
+	q.w = cos(phi / 2);
+	
+	return q;
+}
+
 double quaternionToPlanar(geometry_msgs::Quaternion quaternion) {
 	double z = quaternion.z;
 	double w = quaternion.w;
@@ -251,7 +252,36 @@ double distanceBetweenPoints(double x1, double y1, double x2, double y2) {
 	return sqrt(pow((x2 - x1), 2.0) + pow((y2 - y1), 2.0));
 }
 
+double shiftPointInDirection(double* x, double* y, double distance, double phi) {
+	shiftPointInDirection(x, y, distance, phi, 1);
+}
+
+double shiftPointInDirection(double* x, double* y, double distance, double phi, int direction) {
+	if (direction > 1) {
+		direction = 1;
+	}
+	else if (direction < -1) {
+		direction = -1;
+	}
+	
+	(*x) = (*x) + (direction * cos(phi) * distance);
+	(*y) = (*y) + (direction * sin(phi) * distance);
+}
+
 double getDeltaPhi(double phi, double reference) {
-	return phi - reference;
+	double result = phi - reference;
+	
+	return clampPhi(result);
+}
+
+double clampPhi(double phi) {
+	while (phi > M_PI * 2) {
+		phi -= M_PI * 2;
+	}
+	while (phi < -(M_PI * 2)) {
+		phi += M_PI * 2;
+	}
+	
+	return phi;
 }
 

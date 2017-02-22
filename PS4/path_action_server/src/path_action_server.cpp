@@ -85,7 +85,7 @@ PathActionServer::PathActionServer() : sas_(n_, SERVICE_NAME, boost::bind(&PathA
 
 // performs a reporting procedure via the result on the status of a goal that failed
 void PathActionServer::onFailedGoal(path_action_server::pathGoal* goal, path_action_server::pathResult* result, actionlib::SimpleActionServer<path_action_server::pathAction>* sas, int last_full_pose) {
-	ROS_ERROR("Current path was aborted by the client.");
+	ROS_WARN("Current path was aborted by the client.");
 	
 	// add unfinished poses to the result report
 	int index;
@@ -98,8 +98,13 @@ void PathActionServer::onFailedGoal(path_action_server::pathGoal* goal, path_act
 	
 	// report the pose the robot ended on
 	geometry_msgs::Pose end_pose;
+	end_pose.position.x = current_x_;
+	end_pose.position.y = current_y_;
+	end_pose.position.z = 0;
+	end_pose.orientation = planarToQuaternion(current_phi_);
 	result->end_pose = end_pose;
 	
+	// send out the abortion
 	sas->setAborted(*result);
 }
 
@@ -110,7 +115,7 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 	commander.configureTwistParameters(MOVE_SPEED, TURN_SPEED, TRANS_TIME);
 	
 	int pose_count = goal->nav_path.poses.size();
-	ROS_WARN("Received path request of %d poses.", pose_count);
+	ROS_INFO("Received path request of %d poses.", pose_count);
 	
 	// set up the instance's variables
 	goal_ = *goal;
@@ -127,10 +132,6 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 	for (index = 0; index < pose_count; index++) {
 		ROS_INFO("Beginning processing of pose %d:", index);
 		pose = goal->nav_path.poses[index].pose;
-		
-		// display goal pose, current pose information
-		ROS_WARN("\t<POSE %d> x=%f y=%f phi=%f as DESIRED", index, pose.position.x, pose.position.y, quaternionToPlanar(pose.orientation));
-		ROS_INFO("\t<POSE %d> x=%f y=%f phi=%f as CURRENT", index, current_x_, current_y_, current_phi_);
 		
 		// determine the turn to perform as a subgoal for the pose
 		turn_phi = getDeltaPhi(quaternionToPlanar(pose.orientation), current_phi_);
@@ -149,19 +150,15 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 				twist_left = commander.cmdTurnIter(turn_dir, twist_left);
 			}
 			
+			current_phi_ = current_phi_ + turn_phi - twist_left;
+			current_phi_ = clampPhi(current_phi_);
+			
 			// if the turn was interrupted, run the abort procedure
 			if (twist_left > 0) {
 				commander.cmdStationary(TRANS_TIME);
-				commander.cmdTurn(1, rightAnglePhi() * 2);
-				ROS_INFO("Finished.");
 				onFailedGoal(&goal_, &result_, &sas_, feedback_.last_full_pose);
 				return;
 			}
-			
-			current_phi_ = current_phi_ + turn_phi;
-		}
-		else {
-			ROS_WARN("\t<POSE %d> %f RADIANS FALL BELOW THRESHOLD. NO TURNING.", index, turn_phi);
 		}
 		
 		// determine the forward movement distance as a subgoal for the pose
@@ -176,24 +173,17 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 				twist_left = commander.cmdForwardIter(twist_left);
 			}
 			
+			current_x_ = pose.position.x;
+			current_y_ = pose.position.y;
+			shiftPointInDirection(&current_x_, &current_y_, twist_left, current_phi_, -1);
 			
 			// if the forward movement was interrupted, run the abort procedure
 			if (twist_left > 0) {
 				commander.cmdStationary(TRANS_TIME);
-				commander.cmdTurn(1, rightAnglePhi() * 2);
 				onFailedGoal(&goal_, &result_, &sas_, feedback_.last_full_pose);
 				return;
 			}
-			
-			current_x_ = pose.position.x;
-			current_y_ = pose.position.y;
 		}
-		else {
-			ROS_WARN("\t<POSE %d> %f METERS FALL BELOW THRESHOLD. NO MOVEMENT.", index, forward_dist);
-		}
-		
-		// report the results of attempting the current pose
-		ROS_WARN("\t<POSE %d> x=%f y=%f phi=%f as RESULT", index, current_x_, current_y_, current_phi_);
 		
 		feedback_.last_full_pose = index;
 		sas_.publishFeedback(feedback_);

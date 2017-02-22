@@ -12,6 +12,8 @@
 #include <std_msgs/Bool.h>
 #include <math.h>
 
+#include "stdr_helpers/stdr_twist.h"
+
 // - - - - - - - - - - - - - - -
 // CONSTANT AND GLOBAL VARIABLES
 // - - - - - - - - - - - - - - -
@@ -34,6 +36,8 @@ const double PATH_POINTS[] = {
 };
 // length of the path points array
 const int PATH_POINTS_SIZE = sizeof(PATH_POINTS) / sizeof(PATH_POINTS[0]);
+// distance to revert on failed path
+const double REVERT_DIST = 1.0;
 
 // client connection to the server
 actionlib::SimpleActionClient<path_action_server::pathAction>* client_;
@@ -83,19 +87,38 @@ void onGoalCompletion(const actionlib::SimpleClientGoalState& state, const path_
 	
 	if (pose_count == 0) {
 		ROS_INFO("Action server finished our requested path.");
-	}
-	else {
-		ROS_ERROR("You done fucked up, sir.");
+		return;
 	}
 	
+	ROS_WARN("Action server did not fulfill request; constructing new goal to send.");
 	
-	//int index;
-	//int pose_count = goal->nav_path.poses.size();
-	//geometry_msgs::PoseStamped current_pose;
-	//for (index = last_full_pose + 1; index < pose_count; index++) {
-	//	current_pose = goal->nav_path.poses[index];
-	//	result->nav_path.poses.push_back(current_pose);
-	//}
+	double halted_x = result->end_pose.position.x;
+	double halted_y = result->end_pose.position.y;
+	double halted_phi = quaternionToPlanar(result->end_pose.orientation);
+	
+	double reverted_x = halted_x;
+	double reverted_y = halted_y;
+	shiftPointInDirection(&reverted_x, &reverted_y, REVERT_DIST, halted_phi, -1);
+	
+	// create new goal object and start with reversion pose
+	path_action_server::pathGoal goal;
+	geometry_msgs::PoseStamped pose = createPose(halted_x, halted_y);
+	addPoseToPath(reverted_x, reverted_y, &pose, &goal, true);
+	
+	// build the goal from uncompleted poses
+	int pose_index;
+	double x;
+	double y;
+	for (pose_index = 0; pose_index < pose_count; pose_index++) {
+		x = result->nav_path.poses[pose_index].pose.position.x;
+		y = result->nav_path.poses[pose_index].pose.position.y;
+		addPoseToPath(x, y, &pose, &goal, true);
+	}
+	
+	ROS_WARN("Sending updated path to action server.");
+	
+	// send the request to the service
+	client_->sendGoal(goal, &onGoalCompletion, &onGoalStart, &onGoalFeedback);
 }
 
 // - - - - - -
@@ -136,12 +159,11 @@ int main(int argc, char** argv) {
 	for (pair_index = 0; pair_index < PATH_POINTS_SIZE - 1; pair_index += 2) {
 		x = PATH_POINTS[pair_index];
 		y = PATH_POINTS[pair_index + 1];
-		ROS_INFO("Creating pose at point %f, %f.", x, y);
 		addPoseToPath(x, y, &pose, &goal, true);
 	}
 	
 	// send the request to the service
-	client.sendGoal(goal, &onGoalCompletion, &onGoalStart, &onGoalFeedback);
+	client_->sendGoal(goal, &onGoalCompletion, &onGoalStart, &onGoalFeedback);
 	
 	// spin the process
 	ros::spin();
@@ -150,22 +172,6 @@ int main(int argc, char** argv) {
 // - - - - - - - -
 // HELPER METHODS
 // - - - - - - - -
-
-// converts a planar phi angle to a quaternion orientation
-geometry_msgs::Quaternion planarToQuaternion(double phi) {
-	geometry_msgs::Quaternion q;
-	q.x = 0.0;
-	q.y = 0.0;
-	q.z = sin(phi / 2);
-	q.w = cos(phi / 2);
-	
-	return q;
-}
-
-// returns the identity quaternion ({0.0, 0.0, 0.0, 1.0})
-geometry_msgs::Quaternion getIdentityQuaternion() {
-	return planarToQuaternion(0.0);
-}
 
 // create a pose from the given (x, y) pair
 geometry_msgs::PoseStamped createPose(double x, double y) {
@@ -205,6 +211,8 @@ geometry_msgs::PoseStamped createNextPose(geometry_msgs::PoseStamped* old_pose, 
 
 // create a pose for the (x, y) pair - dependent on if the previous pose should be considered - and add the new pose to the path in construction
 void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_action_server::pathGoal* path, bool consider_previous) {
+	ROS_INFO("Creating pose at point %f, %f.", x, y);
+	
 	if (consider_previous) {
 		*pose = createNextPose(pose, x, y);
 	}

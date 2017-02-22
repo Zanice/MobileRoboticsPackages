@@ -11,6 +11,7 @@ cs_add_executable(path_action_server src/path_action_server.cpp)
 
 add_library(stdr_twist include/stdr_helpers/stdr_twist.cpp)
 
+target_link_libraries(path_action_client stdr_twist)
 target_link_libraries(path_action_server stdr_twist)
 
 install(TARGETS stdr_twist LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})

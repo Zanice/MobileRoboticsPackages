@@ -40,7 +40,13 @@ class TwistCommander {
 
 double rightAnglePhi();
 
+
+geometry_msgs::Quaternion getIdentityQuaternion();
+geometry_msgs::Quaternion planarToQuaternion(double phi);
 double quaternionToPlanar(geometry_msgs::Quaternion quaternion);
 double distanceBetweenPoints(double x1, double y1, double x2, double y2);
+double shiftPointInDirection(double* x, double* y, double distance, double phi);
+double shiftPointInDirection(double* x, double* y, double distance, double phi, int direction);
 double getDeltaPhi(double phi, double reference);
+double clampPhi(double phi);
 
