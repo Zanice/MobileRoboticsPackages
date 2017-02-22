@@ -120,6 +120,9 @@ void PathActionServer::onFailedGoal(path_action_server::pathGoal* goal, path_act
 
 // receives and executes a goal from the client
 void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_action_server::pathAction>::GoalConstPtr& goal) {
+	TwistCommander t(twist_commander_, loop_timer_, DT);
+	//t.linkSAS(sas_);
+	
 	int pose_count = goal->nav_path.poses.size();
 	ROS_WARN("Received path request of %d poses.", pose_count);
 	
@@ -215,9 +218,6 @@ int main(int argc, char** argv) {
 	twist_cmd_.angular.z = 0.0;
 	ros::Rate timer(1 / DT);
 	loop_timer_ = &timer;
-	
-	TwistCommander t(twist_commander_, loop_timer_, DT);
-	//t.doSomething();
 	
 	// create an instance of the action server
 	PathActionServer server;

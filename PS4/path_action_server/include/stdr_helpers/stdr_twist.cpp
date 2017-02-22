@@ -1,6 +1,7 @@
 #include "stdr_twist.h"
 
 #include <ros/ros.h>
+#include <actionlib/server/simple_action_server.h>
 #include <geometry_msgs/Twist.h>
 #include <geometry_msgs/Quaternion.h>
 #include <math.h>
@@ -37,6 +38,19 @@ double TwistCommander::performTwist(double duration) {
 	return 0.0;
 }
 
+
+template <class T> double TwistCommander::performTwist(double duration, actionlib::SimpleActionServer<T>* sas) {
+	double timer = 0.0;
+	
+	while (timer < duration) {
+		twist_commander_->publish(*twist_cmd_);
+		timer += dt_;
+		loop_timer_->sleep();
+	}
+	
+	return 0.0;
+}
+
 double TwistCommander::performStationary(double duration) {
 	twist_cmd_->linear.x = 0.0;
 	twist_cmd_->linear.y = 0.0;
@@ -48,7 +62,29 @@ double TwistCommander::performStationary(double duration) {
 	return performTwist(duration);
 }
 
+template <class T> double TwistCommander::performStationary(double duration, actionlib::SimpleActionServer<T>* sas) {
+	twist_cmd_->linear.x = 0.0;
+	twist_cmd_->linear.y = 0.0;
+	twist_cmd_->linear.z = 0.0;
+	twist_cmd_->angular.x = 0.0;
+	twist_cmd_->angular.y = 0.0;
+	twist_cmd_->angular.z = 0.0;
+	
+	return performTwist(duration);
+}
+
 double TwistCommander::performForward(double distance) {
+	twist_cmd_->linear.x = MOVE_SPEED_;
+	twist_cmd_->linear.y = 0.0;
+	twist_cmd_->linear.z = 0.0;
+	twist_cmd_->angular.x = 0.0;
+	twist_cmd_->angular.y = 0.0;
+	twist_cmd_->angular.z = 0.0;
+	
+	return performTwist(distance / MOVE_SPEED_);
+}
+
+template <class T> double TwistCommander::performForward(double distance, actionlib::SimpleActionServer<T>* sas) {
 	twist_cmd_->linear.x = MOVE_SPEED_;
 	twist_cmd_->linear.y = 0.0;
 	twist_cmd_->linear.z = 0.0;
@@ -83,7 +119,35 @@ double TwistCommander::performTurn(int direction, double radians) {
 	return performTwist(radians / TURN_SPEED_);
 }
 
+template <class T> double TwistCommander::performTurn(int direction, double radians, actionlib::SimpleActionServer<T>* sas) {
+	// ERROR RESOLVING: make negative radians positive
+	if (radians < 0) {
+		radians *= -1;
+	}
+	
+	// ERROR RESOLVING: snap direction to ceiling/floor
+	if (direction > 1) {
+		direction = 1;
+	}
+	else if (direction < -1) {
+		direction = -1;
+	}
+	
+	twist_cmd_->linear.x = 0.0;
+	twist_cmd_->linear.y = 0.0;
+	twist_cmd_->linear.z = 0.0;
+	twist_cmd_->angular.x = 0.0;
+	twist_cmd_->angular.y = 0.0;
+	twist_cmd_->angular.z = TURN_SPEED_ * direction;
+	
+	return performTwist(radians / TURN_SPEED_);
+}
+
 double TwistCommander::performRightAngleTurn(int direction) {
+	return performTurn(direction, M_PI / 2);
+}
+
+template <class T> double TwistCommander::performRightAngleTurn(int direction, actionlib::SimpleActionServer<T>* sas) {
 	return performTurn(direction, M_PI / 2);
 }
 
@@ -99,7 +163,20 @@ double TwistCommander::cmdStationary(double duration) {
 	return remaining;
 }
 
+template <class T> double TwistCommander::cmdStationary(double duration, actionlib::SimpleActionServer<T>* sas) {
+	double remaining = performStationary(duration);
+	
+	return remaining;
+}
+
 double TwistCommander::cmdForward(double distance) {
+	double remaining = performForward(distance);
+	performStationary(TRANS_TIME_);
+	
+	return remaining;
+}
+
+template <class T> double TwistCommander::cmdForward(double distance, actionlib::SimpleActionServer<T>* sas) {
 	double remaining = performForward(distance);
 	performStationary(TRANS_TIME_);
 	
@@ -113,7 +190,21 @@ double TwistCommander::cmdTurn(int direction, double radians) {
 	return remaining;
 }
 
+template <class T> double TwistCommander::cmdTurn(int direction, double radians, actionlib::SimpleActionServer<T>* sas) {
+	double remaining = performTurn(direction, radians);
+	performStationary(TRANS_TIME_);
+	
+	return remaining;
+}
+
 double TwistCommander::cmdRightAngleTurn(int direction) {
+	double remaining = performRightAngleTurn(direction);
+	performStationary(TRANS_TIME_);
+	
+	return remaining;
+}
+
+template <class T> double TwistCommander::cmdRightAngleTurn(int direction, actionlib::SimpleActionServer<T>* sas) {
 	double remaining = performRightAngleTurn(direction);
 	performStationary(TRANS_TIME_);
 	
