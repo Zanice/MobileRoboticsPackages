@@ -11,6 +11,8 @@
 #include <geometry_msgs/Twist.h>
 #include <math.h>
 
+#include "stdr_helpers/stdr_twist.h"
+
 // - - - - - - - - - - - - - - -
 // CONSTANT AND GLOBAL VARIABLES
 // - - - - - - - - - - - - - - -
@@ -213,6 +215,9 @@ int main(int argc, char** argv) {
 	twist_cmd_.angular.z = 0.0;
 	ros::Rate timer(1 / DT);
 	loop_timer_ = &timer;
+	
+	TwistCommander t(twist_commander_, loop_timer_, &twist_cmd_);
+	t.doSomething();
 	
 	// create an instance of the action server
 	PathActionServer server;
