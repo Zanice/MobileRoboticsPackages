@@ -53,20 +53,6 @@ ros::Publisher* twist_commander_;
 ros::Rate* loop_timer_;
 
 // - - - - - - - - - -
-// HELPER METHOD STUBS
-// - - - - - - - - - -
-
-bool perform_twist_action(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
-bool be_stationary(double duration, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
-bool move_forward(double distance, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
-bool make_turn(int direction, double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
-bool make_turn(double radians, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
-bool make_right_angle_turn(int direction, ros::Publisher* twist_commander, geometry_msgs::Twist* twist_cmd, ros::Rate* loop_timer, actionlib::SimpleActionServer<path_action_server::pathAction>* sas);
-double quaternionToPlanar(geometry_msgs::Quaternion quaternion);
-double getDistanceBetween(double x1, double y1, double x2, double y2);
-double getDeltaPhi(double phi, double reference);
-
-// - - - - - - - - - -
 // CLASSES AND METHODS
 // - - - - - - - - - -
 
@@ -166,6 +152,8 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 			// if the turn was interrupted, run the abort procedure
 			if (twist_left > 0) {
 				commander.cmdStationary(TRANS_TIME);
+				commander.cmdTurn(1, rightAnglePhi() * 2);
+				ROS_INFO("Finished.");
 				onFailedGoal(&goal_, &result_, &sas_, feedback_.last_full_pose);
 				return;
 			}
@@ -192,6 +180,7 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 			// if the forward movement was interrupted, run the abort procedure
 			if (twist_left > 0) {
 				commander.cmdStationary(TRANS_TIME);
+				commander.cmdTurn(1, rightAnglePhi() * 2);
 				onFailedGoal(&goal_, &result_, &sas_, feedback_.last_full_pose);
 				return;
 			}

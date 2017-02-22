@@ -30,7 +30,8 @@ double TwistCommander::performTwist(double duration) {
 		duration = performTwistIter(duration);
 	}
 	
-	return duration;
+	//double remaining = duration;
+	return 0.0;
 }
 
 double TwistCommander::performTwistIter(double duration) {
@@ -117,9 +118,15 @@ double TwistCommander::performTurn(int direction, double radians) {
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = turn_speed_ * direction;
 	
-	double remaining = performTwist(radians / turn_speed_);
+	ROS_INFO("INTO TURN");
 	
-	return remaining;
+	//double remaining = performTwist(radians / turn_speed_);
+	//ROS_INFO("OUT OF TURN %f", remaining);
+	
+	performTwist(radians / turn_speed_);
+	ROS_INFO("OUT OF TURN");
+	
+	return 0.0;
 }
 
 double TwistCommander::performTurnIter(int direction, double radians) {
@@ -150,12 +157,14 @@ double TwistCommander::performTurnIter(int direction, double radians) {
 
 void TwistCommander::configureTwistParameters(double move_speed, double turn_speed, double trans_time) {
 	move_speed_ = move_speed;
-	move_speed_ = turn_speed;
+	turn_speed_ = turn_speed;
 	trans_time_ = trans_time;
 }
 
 double TwistCommander::cmdStationary(double duration) {
 	double remaining = performStationary(duration);
+	
+	ROS_INFO("Returning stat");
 	
 	return remaining;
 }
@@ -186,10 +195,18 @@ double TwistCommander::cmdTurn(double radians) {
 		radians *= -1;
 	}
 	
-	double remaining = performTurn(direction, radians);
+	//double remaining = performTurn(direction, radians);
+	performTurn(direction, radians);
+	
+	//ROS_INFO("Completed turn: %f", remaining);
+	ROS_INFO("Completed turn");
+	
 	performStationary(trans_time_);
 	
-	return remaining;
+	ROS_INFO("Returning turn");
+	
+	//return remaining;
+	return 0.0;
 }
 
 double TwistCommander::cmdTurnIter(double radians) {
