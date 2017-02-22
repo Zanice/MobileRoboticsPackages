@@ -84,8 +84,6 @@ double TwistCommander::performForward(double distance) {
 }
 
 double TwistCommander::performForwardIter(double distance) {
-	ROS_ERROR("Entered iter method");
-	
 	twist_cmd_->linear.x = MOVE_SPEED_;
 	twist_cmd_->linear.y = 0.0;
 	twist_cmd_->linear.z = 0.0;

@@ -159,13 +159,12 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 			ROS_INFO("\t<POSE %d> Turning %f radians.", index, turn_phi);
 			twist_left = turn_phi;
 			while (twist_left > 0 && !sas_.isPreemptRequested()) {
-				ROS_INFO("INSIDE LOOP");
 				twist_left = commander.cmdTurnIter(turn_dir, twist_left);
-				ROS_INFO("OUTSIDE LOOP");
 			}
 			
 			// if the turn was interrupted, run the abort procedure
 			if (twist_left > 0) {
+				commander.cmdStationary(TRANS_TIME);
 				onFailedGoal(&goal_, &result_, &sas_, feedback_.last_full_pose);
 				return;
 			}
@@ -185,17 +184,13 @@ void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_acti
 			ROS_INFO("\t<POSE %d> Moving forward %f meters.", index, forward_dist);
 			twist_left = forward_dist;
 			while (twist_left > 0 && !sas_.isPreemptRequested()) {
-				ROS_INFO("INSIDE LOOP");
-				//twist_left = commander.cmdForwardIter(twist_left);
-				commander.cmdForwardIter(twist_left);
-				ROS_INFO("DONE");
-				twist_left -= 0.01;
-				ROS_INFO("OUTSIDE LOOP");
+				twist_left = commander.cmdForwardIter(twist_left);
 			}
 			
 			
 			// if the forward movement was interrupted, run the abort procedure
 			if (twist_left > 0) {
+				commander.cmdStationary(TRANS_TIME);
 				onFailedGoal(&goal_, &result_, &sas_, feedback_.last_full_pose);
 				return;
 			}
