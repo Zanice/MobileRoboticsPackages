@@ -43,6 +43,23 @@ template <class T> double TwistCommander::performTwist(double duration, actionli
 	double timer = 0.0;
 	
 	while (timer < duration) {
+		if (sas->isPreemptRequested()) {
+			twist_cmd_->linear.x = 0.0;
+			twist_cmd_->linear.y = 0.0;
+			twist_cmd_->linear.z = 0.0;
+			twist_cmd_->angular.x = 0.0;
+			twist_cmd_->angular.y = 0.0;
+			twist_cmd_->angular.z = 0.0;
+			
+			while (timer < TRANS_TIME_) {
+				twist_commander_->publish(*twist_cmd_);
+				timer += dt_;
+				loop_timer_->sleep();
+			}
+			
+			return 1.0;
+		}
+		
 		twist_commander_->publish(*twist_cmd_);
 		timer += dt_;
 		loop_timer_->sleep();
@@ -70,7 +87,7 @@ template <class T> double TwistCommander::performStationary(double duration, act
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = 0.0;
 	
-	return performTwist(duration);
+	return performTwist(duration, sas);
 }
 
 double TwistCommander::performForward(double distance) {
@@ -92,7 +109,7 @@ template <class T> double TwistCommander::performForward(double distance, action
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = 0.0;
 	
-	return performTwist(distance / MOVE_SPEED_);
+	return performTwist(distance / MOVE_SPEED_, sas);
 }
 
 double TwistCommander::performTurn(int direction, double radians) {
@@ -140,7 +157,7 @@ template <class T> double TwistCommander::performTurn(int direction, double radi
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = TURN_SPEED_ * direction;
 	
-	return performTwist(radians / TURN_SPEED_);
+	return performTwist(radians / TURN_SPEED_, sas);
 }
 
 double TwistCommander::performRightAngleTurn(int direction) {
@@ -148,7 +165,7 @@ double TwistCommander::performRightAngleTurn(int direction) {
 }
 
 template <class T> double TwistCommander::performRightAngleTurn(int direction, actionlib::SimpleActionServer<T>* sas) {
-	return performTurn(direction, M_PI / 2);
+	return performTurn(direction, M_PI / 2, sas);
 }
 
 void TwistCommander::configureTwistParameters(double move_speed, double turn_speed, double trans_time) {
@@ -164,7 +181,7 @@ double TwistCommander::cmdStationary(double duration) {
 }
 
 template <class T> double TwistCommander::cmdStationary(double duration, actionlib::SimpleActionServer<T>* sas) {
-	double remaining = performStationary(duration);
+	double remaining = performStationary(duration, sas);
 	
 	return remaining;
 }
@@ -177,7 +194,7 @@ double TwistCommander::cmdForward(double distance) {
 }
 
 template <class T> double TwistCommander::cmdForward(double distance, actionlib::SimpleActionServer<T>* sas) {
-	double remaining = performForward(distance);
+	double remaining = performForward(distance, sas);
 	performStationary(TRANS_TIME_);
 	
 	return remaining;
@@ -191,7 +208,7 @@ double TwistCommander::cmdTurn(int direction, double radians) {
 }
 
 template <class T> double TwistCommander::cmdTurn(int direction, double radians, actionlib::SimpleActionServer<T>* sas) {
-	double remaining = performTurn(direction, radians);
+	double remaining = performTurn(direction, radians, sas);
 	performStationary(TRANS_TIME_);
 	
 	return remaining;
@@ -205,7 +222,7 @@ double TwistCommander::cmdRightAngleTurn(int direction) {
 }
 
 template <class T> double TwistCommander::cmdRightAngleTurn(int direction, actionlib::SimpleActionServer<T>* sas) {
-	double remaining = performRightAngleTurn(direction);
+	double remaining = performRightAngleTurn(direction, sas);
 	performStationary(TRANS_TIME_);
 	
 	return remaining;
