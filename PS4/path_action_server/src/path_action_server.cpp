@@ -216,8 +216,8 @@ int main(int argc, char** argv) {
 	ros::Rate timer(1 / DT);
 	loop_timer_ = &timer;
 	
-	TwistCommander t(twist_commander_, loop_timer_, &twist_cmd_);
-	t.doSomething();
+	TwistCommander t(twist_commander_, loop_timer_, DT);
+	//t.doSomething();
 	
 	// create an instance of the action server
 	PathActionServer server;
