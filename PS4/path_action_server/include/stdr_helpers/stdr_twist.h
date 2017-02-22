@@ -5,9 +5,9 @@
 
 class TwistCommander {
 	private:
-		double MOVE_SPEED_;
-		double TURN_SPEED_;
-		double TRANS_TIME_;
+		double move_speed_;
+		double turn_speed_;
+		double trans_time_;
 		
 		ros::Publisher* twist_commander_;
 		ros::Rate* loop_timer_;
@@ -37,6 +37,8 @@ class TwistCommander {
 		double cmdTurn(int direction, double radians);
 		double cmdTurnIter(int direction, double radians);
 };
+
+double rightAnglePhi();
 
 double quaternionToPlanar(geometry_msgs::Quaternion quaternion);
 double distanceBetweenPoints(double x1, double y1, double x2, double y2);

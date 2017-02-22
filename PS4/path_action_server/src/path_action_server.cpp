@@ -121,6 +121,7 @@ void PathActionServer::onFailedGoal(path_action_server::pathGoal* goal, path_act
 void PathActionServer::executeGoal(const actionlib::SimpleActionServer<path_action_server::pathAction>::GoalConstPtr& goal) {
 	// create a twist commander instance
 	TwistCommander commander(twist_commander_, loop_timer_, DT);
+	commander.configureTwistParameters(MOVE_SPEED, TURN_SPEED, TRANS_TIME);
 	
 	int pose_count = goal->nav_path.poses.size();
 	ROS_WARN("Received path request of %d poses.", pose_count);

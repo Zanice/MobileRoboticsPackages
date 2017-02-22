@@ -20,9 +20,9 @@ TwistCommander::TwistCommander(ros::Publisher* twist_commander, ros::Rate* loop_
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = 0.0;
 	
-	MOVE_SPEED_ = 1.0;
-	TURN_SPEED_ = 0.5;
-	TRANS_TIME_ = 0.1;
+	move_speed_ = 1.0;
+	turn_speed_ = 0.5;
+	trans_time_ = 0.1;
 }
 
 double TwistCommander::performTwist(double duration) {
@@ -71,27 +71,27 @@ double TwistCommander::performStationaryIter(double duration) {
 }
 
 double TwistCommander::performForward(double distance) {
-	twist_cmd_->linear.x = MOVE_SPEED_;
+	twist_cmd_->linear.x = move_speed_;
 	twist_cmd_->linear.y = 0.0;
 	twist_cmd_->linear.z = 0.0;
 	twist_cmd_->angular.x = 0.0;
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = 0.0;
 	
-	double remaining = performTwist(distance / MOVE_SPEED_);
+	double remaining = performTwist(distance / move_speed_);
 	
 	return remaining;
 }
 
 double TwistCommander::performForwardIter(double distance) {
-	twist_cmd_->linear.x = MOVE_SPEED_;
+	twist_cmd_->linear.x = move_speed_;
 	twist_cmd_->linear.y = 0.0;
 	twist_cmd_->linear.z = 0.0;
 	twist_cmd_->angular.x = 0.0;
 	twist_cmd_->angular.y = 0.0;
 	twist_cmd_->angular.z = 0.0;
 	
-	double remaining = performTwistIter(distance / MOVE_SPEED_) * MOVE_SPEED_;
+	double remaining = performTwistIter(distance / move_speed_) * move_speed_;
 	
 	return remaining;
 }
@@ -115,9 +115,9 @@ double TwistCommander::performTurn(int direction, double radians) {
 	twist_cmd_->linear.z = 0.0;
 	twist_cmd_->angular.x = 0.0;
 	twist_cmd_->angular.y = 0.0;
-	twist_cmd_->angular.z = TURN_SPEED_ * direction;
+	twist_cmd_->angular.z = turn_speed_ * direction;
 	
-	double remaining = performTwist(radians / TURN_SPEED_);
+	double remaining = performTwist(radians / turn_speed_);
 	
 	return remaining;
 }
@@ -141,17 +141,17 @@ double TwistCommander::performTurnIter(int direction, double radians) {
 	twist_cmd_->linear.z = 0.0;
 	twist_cmd_->angular.x = 0.0;
 	twist_cmd_->angular.y = 0.0;
-	twist_cmd_->angular.z = TURN_SPEED_ * direction;
+	twist_cmd_->angular.z = turn_speed_ * direction;
 	
-	double remaining = performTwistIter(radians / TURN_SPEED_) * TURN_SPEED_;
+	double remaining = performTwistIter(radians / turn_speed_) * turn_speed_;
 	
 	return remaining;
 }
 
 void TwistCommander::configureTwistParameters(double move_speed, double turn_speed, double trans_time) {
-	MOVE_SPEED_ = move_speed;
-	TURN_SPEED_ = turn_speed;
-	TRANS_TIME_ = trans_time;
+	move_speed_ = move_speed;
+	move_speed_ = turn_speed;
+	trans_time_ = trans_time;
 }
 
 double TwistCommander::cmdStationary(double duration) {
@@ -168,7 +168,7 @@ double TwistCommander::cmdStationaryIter(double duration) {
 
 double TwistCommander::cmdForward(double distance) {
 	double remaining = performForward(distance);
-	performStationary(TRANS_TIME_);
+	performStationary(trans_time_);
 	
 	return remaining;
 }
@@ -187,7 +187,7 @@ double TwistCommander::cmdTurn(double radians) {
 	}
 	
 	double remaining = performTurn(direction, radians);
-	performStationary(TRANS_TIME_);
+	performStationary(trans_time_);
 	
 	return remaining;
 }
@@ -205,7 +205,7 @@ double TwistCommander::cmdTurnIter(double radians) {
 
 double TwistCommander::cmdTurn(int direction, double radians) {
 	double remaining = performTurn(direction, radians);
-	performStationary(TRANS_TIME_);
+	performStationary(trans_time_);
 	
 	return remaining;
 }
@@ -217,6 +217,10 @@ double TwistCommander::cmdTurnIter(int direction, double radians) {
 }
 
 // -------------------------------------------------
+
+double rightAnglePhi() {
+	return M_PI / 2;
+}
 
 double quaternionToPlanar(geometry_msgs::Quaternion quaternion) {
 	double z = quaternion.z;
