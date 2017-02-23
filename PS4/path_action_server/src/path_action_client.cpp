@@ -48,8 +48,6 @@ bool collision_alarm_ = false;
 // HELPER METHOD STUBS
 // - - - - - - - - - -
 
-geometry_msgs::Quaternion planarToQuaternion(double phi);
-geometry_msgs::Quaternion getIdentityQuaternion();
 geometry_msgs::PoseStamped createPose(double x, double y);
 geometry_msgs::PoseStamped createNextPose(geometry_msgs::PoseStamped* old_pose, double x, double y);
 void addPoseToPath(double x, double y, geometry_msgs::PoseStamped* pose, path_action_server::pathGoal* path, bool consider_previous);
