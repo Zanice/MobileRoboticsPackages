@@ -1,0 +1,56 @@
+init_pose:
+
+	header:
+		seq:			160
+		frame_id:		map_static
+	child_frame_id:		robot0
+	pose:
+		position:
+			x:			1.0
+			y:			2.0
+		orientation:
+			z:			0.0
+			w:			1.0
+
+pose1:
+
+	header:
+		seq:			3581
+		frame_id:		map_static
+	child_frame_id:		robot0
+	pose:
+		position:
+			x:			14.2929929267
+			y:			14.0587202587
+		orientation:
+			z:			0.712079308444
+			w:			0.702099037519
+
+pose2:
+
+	header:
+		seq:			4871
+		frame_id:		map_static
+	child_frame_id:		robot0
+	pose:
+		position:
+			x:			14.7686509081
+			y:			0.776029578771
+		orientation:
+			z:			-0.0361728196229
+			w:			0.999345549407
+
+pose3:
+
+	header:
+		seq:			6545
+		frame_id:		map_static
+	child_frame_id:		robot0
+	pose:
+		position:
+			x:			0.721320364383
+			y:			6.98799125404
+		orientation:
+			z:			0.999682773765
+			w:			0.0251863422741
+
