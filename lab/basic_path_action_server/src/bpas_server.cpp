@@ -22,14 +22,14 @@ const char* NODE_NAME = "bpas_server";
 // service name
 const char* SERVICE_NAME = "bpas_service";
 // name of velocity topic to publish to
-const char* VEL_TOPIC_NAME = "/robot0/cmd_vel";
+const char* VEL_TOPIC_NAME = "/cmd_vel";
 
 // robot warm-up time
 const double WARM_UP_TIME = 0.2;
 // robot command transition time
-const double TRANS_TIME = 0.1;
+const double TRANS_TIME = 0.5;
 // robot movement speed value in m/s
-const double MOVE_SPEED = 1.0;
+const double MOVE_SPEED = 0.4;
 // robot turn speed value in rads/s
 const double TURN_SPEED = 0.5;
 

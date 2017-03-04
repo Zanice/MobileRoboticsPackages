@@ -11,14 +11,14 @@
 // node name
 const char* NODE_NAME = "bpas_alarm";
 // name of LIDAR scan topic to subscribe to
-const char* SCAN_TOPIC_NAME = "/robot0/laser_0";
+const char* SCAN_TOPIC_NAME = "/scan";
 // name of alarm topic to publish to
 const char* ALARM_TOPIC_NAME = "/bpas_alarm/alarm";
 // name of minimum distance topic to publish to
 const char* MIN_DIST_TOPIC_NAME = "/bpas_alarm/min_dist";
 
-const double MIN_SAFE_DIST = 0.6;
-const double CONE_ANGLE_FROM_MID = 0.8;
+const double MIN_SAFE_DIST = 0.7;
+const double CONE_ANGLE_FROM_MID = 0.5;
 
 // initialize flag for callback information setup
 bool info_setup = false;
@@ -44,11 +44,14 @@ ros::Publisher dist_publisher;
 
 void onLaserCallback(const sensor_msgs::LaserScan& laser_scans) {
 	if (!info_setup) {
-		angle_min = laser_scans.angle_min;
-		angle_max = laser_scans.angle_max;
+		//angle_min = laser_scans.angle_min;
+		angle_min = -0.5;
+		//angle_max = laser_scans.angle_max;
+		angle_max = 0.5;
 		angle_delta = laser_scans.angle_increment;
 		range_min = laser_scans.range_min;
-		range_max = laser_scans.range_max;
+		//range_max = laser_scans.range_max;
+		range_max = 4.0;
 		
 		min_index = (-CONE_ANGLE_FROM_MID - angle_min) / angle_delta;
 		max_index = (-angle_min + CONE_ANGLE_FROM_MID) / angle_delta;
