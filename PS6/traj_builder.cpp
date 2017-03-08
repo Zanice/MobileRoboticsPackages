@@ -405,8 +405,101 @@ void TrajBuilder::build_triangular_spin_traj(geometry_msgs::PoseStamped start_po
 //compute trajectory corresponding to applying max prudent decel to halt
 void TrajBuilder::build_braking_traj(geometry_msgs::PoseStamped start_pose,
         std::vector<nav_msgs::Odometry> &vec_of_states) {
-    //FINISH ME!
-
+	// debug
+	ROS_WARN("HALTING PROCESS STARTED");
+	
+	// construct acceleration ramps and deceleration steps
+    double lin_ramp = speed_max_ / accel_max_;
+    double ang_ramp = omega_max_ / alpha_max_;
+    int lin_steps = round(lin_ramp / dt_);
+    int ang_steps = round (ang_ramp / dt_);
+	
+	// grab information from starting pose
+	double start_x = start_pose.pose.position.x;
+	double start_y = start_pose.pose.position.y;
+	double start_psi = convertPlanarQuat2Psi(start_pose.pose.orientation);
+	
+	// create updating variables for position, orientation
+	double pose_x = start_x;
+	double pose_y = start_y;
+	double pose_psi = start_psi;
+	
+	// TODO: poll the current lateral/angular velocity
+	double vel_lin = speed_max_; //TODO
+	double vel_ang = 0.0; //TODO
+	
+	// determine the realms of velocity the robot currently has
+	bool has_linear_velocity = vel_lin != 0.0;
+	bool has_angular_velocity = vel_ang != 0.0;
+	
+	// set up the desired state
+	nav_msgs::Odometry desired_state;
+	desired_state.header = start_pose.header;
+	desired_state.pose.pose = start_pose.pose;
+	
+	// find the total number of deceleration steps needed to halt the robot
+	int decel_steps;
+	if (lin_steps > ang_steps) {
+		decel_steps = lin_steps;
+	}
+	else {
+		decel_steps = ang_steps;
+	}
+	
+	// perform the deceleration over the determined number of steps
+	for (int step_num = 0; step_num < decel_steps; step_num++) {
+		// perform the iterative decelerations
+		if (has_linear_velocity) {
+			vel_lin -= accel_max_ * dt_;
+			if (vel_lin < 0.0) {
+				vel_lin = 0.0;
+			}
+		}
+		if (has_angular_velocity) {
+			vel_ang -= alpha_max_ * dt_;
+			if (vel_ang < 0.0) {
+				vel_ang = 0.0;
+			}
+		}
+		
+		// set the corresponding velocities for the desired state
+		desired_state.twist.twist.linear.x = vel_lin;
+		desired_state.twist.twist.linear.y = 0.0;
+		desired_state.twist.twist.linear.z = 0.0;
+		desired_state.twist.twist.angular.x = 0.0;
+		desired_state.twist.twist.angular.y = 0.0;
+		desired_state.twist.twist.angular.z = vel_ang;
+		
+		// find the new pose elements after step with new velocity
+		pose_psi += vel_ang * dt_;
+		pose_x += vel_lin * cos(pose_psi) * dt_;
+		pose_y += vel_lin * sin(pose_psi) * dt_;
+		
+		// set the corresponding pose for the desired state
+		desired_state.pose.pose.position.x = pose_x;
+		desired_state.pose.pose.position.y = pose_y;
+		desired_state.pose.pose.position.z = 0;
+		desired_state.pose.pose.orientation = convertPlanarPsi2Quaternion(pose_psi);
+		
+		// push the constructed state
+		vec_of_states.push_back(desired_state);
+		
+		if (vel_lin == 0.0) {
+			has_linear_velocity = false;
+		}
+		if (vel_ang == 0.0) {
+			has_angular_velocity = false;
+		}
+		
+		// if both velocities are now zero, we have come to a stop -> break out of the loop
+		if (!has_linear_velocity && !has_angular_velocity) {
+			break;
+		}
+	}
+	
+	// ensure the robot has no velocity in the end
+	desired_state.twist.twist = halt_twist_;
+	vec_of_states.push_back(desired_state);
 }
 
 //main fnc of this library: constructs a spin-in-place reorientation to
