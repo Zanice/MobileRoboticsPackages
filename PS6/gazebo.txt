@@ -1,0 +1,1 @@
+export SVGA_VGPU10=0
