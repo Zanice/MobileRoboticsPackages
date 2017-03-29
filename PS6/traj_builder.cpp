@@ -409,10 +409,10 @@ void TrajBuilder::build_braking_traj(geometry_msgs::PoseStamped start_pose,
 	ROS_WARN("HALTING PROCESS STARTED");
 	
 	// construct acceleration ramps and deceleration steps
-    double lin_ramp = speed_max_ / accel_max_;
-    double ang_ramp = omega_max_ / alpha_max_;
-    int lin_steps = round(lin_ramp / dt_);
-    int ang_steps = round (ang_ramp / dt_);
+	double lin_ramp = speed_max_ / accel_max_;
+	double ang_ramp = omega_max_ / alpha_max_;
+	int lin_steps = round(lin_ramp / dt_);
+	int ang_steps = round (ang_ramp / dt_);
 	
 	// grab information from starting pose
 	double start_x = start_pose.pose.position.x;

@@ -1,0 +1,36 @@
+/learning_ros/Part_4/mobot_pub_des_state/src/pub_des_state_main.cpp
+
+12|+	
+12|+	const double PATH_POINTS[] = {
+12|+		0.0, 6.0,
+12|+		-8.0, 6.0
+12|+	};
+12|+	const int PATH_POINTS_SIZE = sizeof(PATH_POIMTS) / sizeof(PATH_POINTS[0]);
+
+		<Starting at line 40>
+		
+		// build the path from desired coordinates
+		int pair_index;
+		double current_x;
+		double current_y;
+		geometry_msgs::PoseStamped pose_stamped;
+		pose_stamped.header.frame_id = "world";
+		geometry_msgs::Pose pose;
+		for (pair_index = 0; pair_index < PATH_POINTS_SIZE - 1; pair_index += 2) {
+			current_x = PATH_POINTS[pair_index];
+			current_y = PATH_POINTS[pair_index + 1];
+			quat = convertPlanarPhi2Quaternion(0);
+		
+			ROS_INFO("Creating pose at point %f, %f.", current_x, current_y);
+			pose.position.x = current_x;
+			pose.position.y = current_y;
+			pose.position.z = 0.0;
+			pose.orientation = quat;
+			pose_stamped.pose = pose;
+			path_srv.request.path.poses.push_back(pose_stamped);
+		}
+		
+		client.call(path_srv);
+
+		return 0;
+

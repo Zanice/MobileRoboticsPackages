@@ -1,9 +1,0 @@
-/learning_ros/Part_4/mobot_pub_des_state/src/pub_des_state_main.cpp
-
-11|		// desStatePublisher.append_path_queue(5.0,0.0,0.0);
-12|		// desStatePublisher.append_path_queue(0.0,0.0,0.0);
-
-/learning_ros/Part_4/mobot_pub_des_state/src/pub_des_state_main.cpp
-
-
-

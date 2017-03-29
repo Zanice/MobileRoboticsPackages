@@ -1,5 +1,11 @@
 #include "pub_des_state.h"
+
+#include <ros/ros.h>
+#include <std_msgs/Bool.h>
 //ExampleRosClass::ExampleRosClass(ros::NodeHandle* nodehandle):nh_(*nodehandle)
+
+bool prev_alarm_flag;
+bool alarm_flag;
 
 DesStatePublisher::DesStatePublisher(ros::NodeHandle& nh) : nh_(nh) {
     //as_(nh, "pub_des_state_server", boost::bind(&DesStatePublisher::executeCB, this, _1),false) {
@@ -20,6 +26,11 @@ DesStatePublisher::DesStatePublisher(ros::NodeHandle& nh) : nh_(nh) {
     trajBuilder_.set_path_move_tol_(path_move_tol_);
     initializePublishers();
     initializeServices();
+    
+    //EDIT
+    alarm_setup_ = false;
+    alarm_flag = false;
+    
     //define a halt state; zero speed and spin, and fill with viable coords
     halt_twist_.linear.x = 0.0;
     halt_twist_.linear.y = 0.0;
@@ -54,11 +65,21 @@ void DesStatePublisher::initializeServices() {
 }
 
 //member helper function to set up publishers;
-
 void DesStatePublisher::initializePublishers() {
     ROS_INFO("Initializing Publishers");
     desired_state_publisher_ = nh_.advertise<nav_msgs::Odometry>("/desState", 1, true);
     des_psi_publisher_ = nh_.advertise<std_msgs::Float64>("/desPsi", 1);
+}
+
+void alarmCallback(const std_msgs::Bool& alarm_msg) {
+	if (alarm_msg.data && !alarm_flag) {
+		alarm_flag = true;
+	}
+	else if (!alarm_msg.data && alarm_flag) {
+		alarm_flag = false;
+	}
+	
+	alarm_flag = alarm_msg.data;
 }
 
 bool DesStatePublisher::estopServiceCallback(std_srvs::TriggerRequest& request, std_srvs::TriggerResponse& response) {
@@ -114,6 +135,23 @@ void DesStatePublisher::set_init_pose(double x, double y, double psi) {
 // or points can be appended to path queue w/ service append_path_
 
 void DesStatePublisher::pub_next_state() {
+	if (!alarm_setup_) {
+		ros::Subscriber alarm_subscriber = nh_.subscribe("/e_stop_alarm/alarm", 1, alarmCallback);
+		alarm_subscriber_ = alarm_subscriber;
+		
+		prev_alarm_flag = false;
+		alarm_flag = false;
+		alarm_setup_ = true;
+	}
+	
+	if (!prev_alarm_flag && alarm_flag) {
+		e_stop_trigger_ = true;
+	}
+	else if (prev_alarm_flag && !alarm_flag) {
+		e_stop_reset_ = true;
+	}
+	prev_alarm_flag = alarm_flag;
+	
     // first test if an e-stop has been triggered
     if (e_stop_trigger_) {
         e_stop_trigger_ = false; //reset trigger

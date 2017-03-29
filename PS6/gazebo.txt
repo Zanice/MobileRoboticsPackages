@@ -1,1 +1,4 @@
 export SVGA_VGPU10=0
+
+roslaunch mobot_urdf mobot_in_pen.launch
+rosrun traj_builder traj_builder_example_main
