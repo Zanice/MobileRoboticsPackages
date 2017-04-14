@@ -1,0 +1,17 @@
+<launch>
+	<arg name="map" value="$(find exmpl_models)/glennan_2nd_flr/glennan_2nd_flr_model_map.yaml"/>
+	
+	<node name="setup_batch" pkg="ps7_launchers" type="setup_gazebo.sh"/>
+	
+	<include file="$(find gazebo_ros)/launch/empty_world.launch"/>
+	<include file="$(find exmpl_models)/launch/add_glennan_2nd_flr.launch"/>
+	<include file="$(find mobot_urdf)/launch/mobot_w_lidar.launch"/>
+	<node name="glennan_2nd_flr_model_map" pkg="map_server" type="map_server" args="$(arg map)"/>
+	
+	<node name="amcl" pkg="amcl" type="amcl"/>
+	<node name="mobot_drifty_odom" pkg="mobot_drifty_odom" type="mobot_drifty_odom"/>
+	<node name="lin_steering_wrt_odom" pkg="lin_steering" type="lin_steering_wrt_odom"/>
+	<node name="mobot_pub_des_state" pkg="mobot_pub_des_state" type="mobot_pub_des_state"/>
+	<node name="pub_des_state_path_client" pkg="mobot_pub_des_state" type="pub_des_state_path_client"/>
+	<node name="pds_lidar_alarm" pkg="pds_lidar_alarm" type="pds_lidar_alarm"/>
+</launch>
