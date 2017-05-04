@@ -1,0 +1,11 @@
+Go Forward:
+roslaunch gazebo_ros empty_world.launch
+roslaunch mobot_urdf mobot.launch
+rosrun mobot_pub_des_state mobot_pub_des_state
+rosrun lin_steering lin_steering_wrt_odom
+rosrun mobot_pub_des_state pub_des_state_path_client
+
+
+
+When robot finishes grabbing,run:
+rosrun mobot_pub_des_state pub_des_state_path_client2

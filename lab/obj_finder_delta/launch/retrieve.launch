@@ -1,5 +1,24 @@
 <launch>
-	<include file="$(find obj_finder_delta)/launch/proc/move_to_stool_proc.launch"/>
-	<include file="$(find obj_finder_delta)/launch/proc/grab_proc.launch"/>
-	<include file="$(find obj_finder_delta)/launch/proc/return_from_stool.launch"/>
+	<!-- <include file="$(find obj_finder_delta)/launch/proc/move_to_stool_proc.launch"/> -->
+	<!-- <include file="$(find obj_finder_delta)/launch/proc/grab_proc.launch"/> -->
+	<!-- <include file="$(find obj_finder_delta)/launch/proc/return_from_stool.launch"/> -->
+	
+	<!-- startup for movement resources -->
+	<include file="$(find gazebo_ros)/launch/empty_world.launch"/>
+	<include file="$(find mobot_urdf)/launch/mobot.launch"/>
+	<node name="mobot_pub_des_state" pkg="mobot_pub_des_state" type="mobot_pub_des_state"/>
+	<node name="lin_steering_wrt_odom" pkg="lin_steering" type="lin_steering_wrt_odom"/>
+	
+	<!-- startup for grabber resources -->
+	<include file="$(find launchers)/launch/start_baxter.launch"/>
+	<include file="$(find coordinator)/launch/coord_vision_manip.launch"/>
+	
+	<!-- procedure for moving to the stool -->
+	<node name="pub_des_state_path_client" pkg = "mobot_pub_des_state" type="pub_des_state_path_client"/>
+	
+	<!-- procedure for grabbing the block off the stool -->
+	<node name="acquire_block_client" pkg="coordinator" type="acquire_block_client"/>
+	
+	<!-- procedure for returning to starting pen -->
+	<node name="pub_des_state_path_client2" pkg = "mobot_pub_des_state" type="pub_des_state_path_client2"/>
 </launch>
