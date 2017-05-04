@@ -1,0 +1,9 @@
+<launch>
+	<!-- <include file="$(find PACKAGE)/launch/FILE.launch"/> -->
+	<!-- <node name="" pkg="" type="" args=""/> -->
+	
+	<include file="$(find launchers)/launch/start_baxter.launch"/>
+	<include file="$(find coordinator)/launch/coord_vision_manip.launch"/>
+	
+	<node name="acquire_block_client" pkg="coordinator" type="acquire_block_client"/>
+</launch>

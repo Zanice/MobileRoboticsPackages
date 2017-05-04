@@ -1,8 +1,0 @@
-<launch>
-	<!-- start object finder node -->
-	<node name="ofd_as" pkg="obj_finder_delta" type="ofd_as"/>
-	
-	<!-- start object finder node -->
-	<node name="ofd_client" pkg="obj_finder_delta" type="ofd_client"/>
-</launch>
-

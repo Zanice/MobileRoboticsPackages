@@ -1,0 +1,5 @@
+<launch>
+	<include file="$(find obj_finder_delta)/launch/proc/move_to_stool_proc.launch"/>
+	<include file="$(find obj_finder_delta)/launch/proc/grab_proc.launch"/>
+	<include file="$(find obj_finder_delta)/launch/proc/return_from_stool.launch"/>
+</launch>
